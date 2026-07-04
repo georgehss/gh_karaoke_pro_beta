@@ -7,3 +7,4 @@ PySoundFile
 gunicorn
 werkzeug
 python-dotenv
+openai-whisper
