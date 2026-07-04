@@ -1,0 +1,78 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+app-example
+
+# generated native folders
+/ios
+/android
+
+# Variáveis de ambiente
+.env
+.env.local
+.env.*.local
+
+# Chaves SSL
+*.pem
+*.key
+*.crt
+
+# Arquivos de dependência local
+venv/
+env/
+__pycache__/
+ffmpeg.exe
+
+# Downloads temporários
+downloads/
+youtube_downloads/
+soundcloud_downloads/
+
+# IDE
+.vscode/
+.idea/
+*.pyc
+
+# Logs
+*.log
+
+Caminho - GH karaoke Pro.txt
+Estrutura - GH karaoke Pro.txt
+Github - GH karaoke Pro.txt
+
+
