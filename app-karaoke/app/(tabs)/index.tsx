@@ -20,6 +20,7 @@ import MenuLateral from '../../src/components/modals/MenuLateral';
 import { ModalNovaPasta, ModalOrdem, ModalRenomearBib, ModalAcaoArquivo } from '../../src/components/modals/ModaisBiblioteca';
 import { useLibraryManager } from '../../src/hooks/useLibraryManager';
 import { useAudioEngine } from '../../src/hooks/useAudioEngine';
+import { gerarHtmlMonitorExterno } from '../../src/utils/monitorTemplate';
 import YoutubeIframe from 'react-native-youtube-iframe';
 
 
@@ -34,9 +35,6 @@ export default function IndexScreen() {
     Dimensions.get('screen').width > Dimensions.get('screen').height
   );
 
-
-
-  
   useEffect(() => {
     // Atualiza a orientação apenas quando o usuário realmente girar a tela
     const updateOrientation = () => {
@@ -191,7 +189,38 @@ export default function IndexScreen() {
       alert("O Monitor Externo (Dual Screen) é uma funcionalidade exclusiva da versão Web!");
       return;
     }
-    setModoMonitorExterno(!modoMonitorExterno);
+
+    if (modoMonitorExterno) {
+      setModoMonitorExterno(false);
+      if (janelaExternaRef.current && !janelaExternaRef.current.closed) {
+        janelaExternaRef.current.close();
+      }
+    } else {
+      setModoMonitorExterno(true);
+      
+      const isInterno = arquivoPro ? !!arquivoPro.isInterno : false;
+      const tempoAtual = isInterno ? youtubeTimeRef.current : (player ? player.currentTime || 0 : 0);
+      const uriInicial = arquivoPro ? arquivoPro.uri : '';
+      const nomeInicial = arquivoPro ? arquivoPro.name : 'Aguardando música da fila...';
+
+      if (player) player.pause();
+
+      const novaJanela = window.open('', 'PlayerKaraokeExterno', 'width=1280,height=720,toolbar=no,menubar=no,scrollbars=no,location=no,status=no');
+      janelaExternaRef.current = novaJanela;
+
+      if (novaJanela) {
+        // Puxa o HTML limpo importado do seu utilitário
+        const htmlCompleto = gerarHtmlMonitorExterno(nomeInicial, uriInicial, isInterno, tempoAtual);
+        
+        novaJanela.document.write(htmlCompleto);
+        novaJanela.document.close();
+
+        novaJanela.onbeforeunload = () => {
+          setModoMonitorExterno(false);
+          window.postMessage({ type: 'janela_externa_fechada' }, '*');
+        };
+      }
+    }
   };
 
   // --- ESTADOS E FUNÇÕES DA FILA DE REPRODUÇÃO (MODAIS E SALVAMENTO) ---
