@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Platform, FlatList, Modal, TextInput, Image, Keyboard, ScrollView, Alert, useWindowDimensions, Linking, Dimensions } from 'react-native';
+import { Text, View, TouchableOpacity, ActivityIndicator, Platform, FlatList, Modal, TextInput, Image, Keyboard, ScrollView, Alert, useWindowDimensions, Linking, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context'; 
 import * as DocumentPicker from 'expo-document-picker';
-import { useAudioPlayer } from 'expo-audio';
-import { setAudioModeAsync } from 'expo-audio';
-import { useVideoPlayer, VideoView } from 'expo-video'; 
+import { VideoView } from 'expo-video'; 
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import Slider from '@react-native-community/slider';
@@ -44,8 +42,6 @@ export default function IndexScreen() {
 
     const subscription = Dimensions.addEventListener('change', updateOrientation);
   
-  
-
   return () => subscription?.remove();
   }, []);
 
@@ -165,7 +161,6 @@ export default function IndexScreen() {
       });
     }
   };
-
 
   // =========================================================================
   // ESTADOS RESTAURADOS DA INTERFACE E MÁQUINA DE ESTADO (IA E REPRODUTOR)
