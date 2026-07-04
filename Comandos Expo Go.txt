@@ -1,0 +1,11 @@
+## COMANDO PARA COMPILAR O ANDROID ##
+
+eas build -p android --profile preview
+
+## COMANDO PARA COMPILAR MODO WEB ##
+
+npx expo export -p web
+
+## ESCANER DE DEPENDÊNCIAS DO PROJETO PARA ATUALIZAR SE NECESSÁRIO ##
+
+npx expo install --check

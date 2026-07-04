@@ -1,0 +1,10 @@
+Flask
+Flask-Cors
+gunicorn
+soundfile
+demucs
+yt-dlp
+openai-whisper
+werkzeug
+replicate
+python-dotenv
