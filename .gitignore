@@ -9,6 +9,7 @@ dist/
 web-build/
 expo-env.d.ts
 
+
 # Native
 .kotlin/
 *.orig.*
@@ -54,6 +55,7 @@ app-example
 
 # Arquivos de dependência local
 venv/
+.venv/
 env/
 __pycache__/
 ffmpeg.exe
@@ -70,6 +72,16 @@ soundcloud_downloads/
 
 # Logs
 *.log
+
+# Mídias de Áudio e Vídeo
+*.mp3
+*.mp4
+*.avi
+*.mkv
+*.mov
+*.wmv
+*.flv
+
 
 Caminho - GH karaoke Pro.txt
 Estrutura - GH karaoke Pro.txt
