@@ -8,3 +8,5 @@ openai-whisper
 werkzeug
 replicate
 python-dotenv
+pyinstaller
+pywebview
