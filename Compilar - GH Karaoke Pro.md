@@ -44,6 +44,24 @@ import sys, os, traceback, webbrowser, time, threading
 from datetime import datetime
 # ... continuam os seus imports originais (flask, yt_dlp, etc)
 
+# --- SISTEMA DE DEBUG GLOBAL DO EXECUTÁVEL ---
+# Pega a pasta atual onde o .exe está rodando
+pasta_atual = os.getcwd()
+caminho_log = os.path.join(pasta_atual, "log_gh_karaoke_pro.txt")
+
+try:
+    # Abre (ou cria) o arquivo de log para registrar tudo
+    log_file = open(caminho_log, 'a', encoding='utf-8')
+    log_file.write(f"\n\n=========================================\n")
+    log_file.write(f"🚀 TENTATIVA DE INÍCIO: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+    log_file.write(f"=========================================\n")
+    
+    # Redireciona a saída padrão (prints) e a saída de erros (crash) para o arquivo
+    sys.stdout = log_file
+    sys.stderr = log_file
+except Exception as e:
+    pass 
+
 # Variável do Heartbeat
 ultimo_ping = time.time()
 
