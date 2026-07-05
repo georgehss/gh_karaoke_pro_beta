@@ -9,8 +9,3 @@ npx expo export -p web
 ## ESCANER DE DEPENDÊNCIAS DO PROJETO PARA ATUALIZAR SE NECESSÁRIO ##
 
 npx expo install --check
-
-
-## COMANDO PARA COMPILAR GH KARAOKE PRO ##
-
-pyinstaller --name "GHKaraokePro" --onedir --noconsole --add-data "dist;dist" --copy-metadata replicate --icon="icon.ico" servidor_light.py

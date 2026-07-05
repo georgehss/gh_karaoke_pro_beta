@@ -1,9 +1,31 @@
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system/legacy';
 
-export const URL_SERVIDOR = 'http://localhost:5000'; // Substitua pelo endereço do seu servidor Python
+// Substitua pelo endereço do seu servidor Python
 export const LIBRARY_DIR = `${FileSystem.documentDirectory}KaraokeLibrary/`;
 export const LRC_LIBRARY_DIR = `${FileSystem.documentDirectory}LrcLibrary/`;
 export const PLAYLISTS_DIR = `${FileSystem.documentDirectory}Playlists/`;
+
+const definirUrlAmbiente = (): string => {
+  if (Platform.OS === 'web') {
+    return 'http://localhost:5000';
+  }
+
+  // Captura o endereço de conexão que o Metro Bundler está usando para se comunicar com o app
+  const hostUri = Constants.expoConfig?.hostUri; 
+  
+  if (hostUri) {
+    // O hostUri vem no formato "192.168.X.X:8081", então separamos para pegar apenas o IP antes dos dois pontos
+    const ipDoMetro = hostUri.split(':')[0];
+    return `http://${ipDoMetro}:5000`;
+  }
+
+  // Fallback de segurança caso o hostUri falhe em algum cenário offline extremo
+  return 'http://192.168.0.XX:5000'; 
+};
+
+export const URL_SERVIDOR = definirUrlAmbiente();
 
 export const processarLRC = (conteudo: string) => {
   const linhas = conteudo.trim().split('\n');
