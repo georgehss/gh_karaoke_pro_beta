@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Text, View, TouchableOpacity, ActivityIndicator, Platform, FlatList, Modal, TextInput, Image, Keyboard, ScrollView, Alert, useWindowDimensions, Linking, Dimensions } from 'react-native';
+import { Text, View, TouchableOpacity, ActivityIndicator, Platform, FlatList, Modal, TextInput, Image, Keyboard, ScrollView, useWindowDimensions, Linking, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context'; 
 import * as DocumentPicker from 'expo-document-picker';
 import { VideoView } from 'expo-video'; 
@@ -24,7 +24,7 @@ import YoutubeIframe from 'react-native-youtube-iframe';
 
 // Quando colocar na nuvem ou ngrok, é só trocar este link inteiro!
 import { styles } from '../../src/styles/indexStyles';
-import { URL_SERVIDOR, LIBRARY_DIR, LRC_LIBRARY_DIR, PLAYLISTS_DIR, processarLRC, formatarTempo, abrirBancoPastas, salvarHandleDB, apagarHandleDB, delay } from '../../src/utils/indexUtils';
+import { URL_SERVIDOR, LIBRARY_DIR, LRC_LIBRARY_DIR, PLAYLISTS_DIR, processarLRC, formatarTempo, delay } from '../../src/utils/indexUtils';
 import type { PlaylistItem } from '../../src/utils/indexUtils';
 
 export default function IndexScreen() {
@@ -42,6 +42,8 @@ export default function IndexScreen() {
 
     const subscription = Dimensions.addEventListener('change', updateOrientation);
   
+  
+
   return () => subscription?.remove();
   }, []);
 
@@ -161,6 +163,7 @@ export default function IndexScreen() {
       });
     }
   };
+
 
   // =========================================================================
   // ESTADOS RESTAURADOS DA INTERFACE E MÁQUINA DE ESTADO (IA E REPRODUTOR)
