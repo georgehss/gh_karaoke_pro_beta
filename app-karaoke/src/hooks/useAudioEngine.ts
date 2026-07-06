@@ -218,7 +218,7 @@ export function useAudioEngine(
           setResultadosYoutube(resultadosFormatados);
         }
       }
-    } catch (erro) { alert("Erro na busca."); }
+    } catch (erro) { alert("Erro na busca. Verifique no MENU qual dos modos está ativado, servidor externo ou servidor interno. Tente mudar o servidor atual."); }
     setIsBuscandoYt(false);
   };
 
