@@ -6,7 +6,6 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import Slider from '@react-native-community/slider';
 import { Ionicons } from '@expo/vector-icons';
-import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import ModalConfiguracoes from '../../src/components/modals/ModalConfiguracoes';
 import ModalQualidadeYoutube from '../../src/components/modals/ModalQualidadeYoutube';
 import ModalMixer from '../../src/components/modals/ModalMixer';
@@ -16,6 +15,8 @@ import MenuLateral from '../../src/components/modals/MenuLateral';
 import { ModalNovaPasta, ModalOrdem, ModalRenomearBib, ModalAcaoArquivo } from '../../src/components/modals/ModaisBiblioteca';
 import { useLibraryManager } from '../../src/hooks/useLibraryManager';
 import { useAudioEngine } from '../../src/hooks/useAudioEngine';
+import { useWebAudioEffects } from '../../src/hooks/useWebAudioEffects';
+import { useKaraokeAI } from '../../src/hooks/useKaraokeAI';
 import { gerarHtmlMonitorExterno } from '../../src/utils/monitorTemplate';
 import TelaEstudioIA from '../../src/screens/TelaEstudioIA';
 import TelaReprodutorYoutube from '../../src/screens/TelaReprodutorYoutube';
@@ -44,8 +45,6 @@ export default function IndexScreen() {
 
     const subscription = Dimensions.addEventListener('change', updateOrientation);
   
-  
-
   return () => subscription?.remove();
   }, []);
 
@@ -96,6 +95,10 @@ export default function IndexScreen() {
   const [telaAtiva, setTelaAtiva] = useState<'principal' | 'reprodutor' | 'reprodutor_lrc' | 'biblioteca' | 'biblioteca_lrc'>('principal');
   const [motorBusca, setMotorBusca] = useState<'externo' | 'interno'>('externo');
 
+  // --- NOVOS ESTADOS: CONFIGURAÇÕES E IA ---
+  const [modalConfigAberto, setModalConfigAberto] = useState<boolean>(false);
+  const [modeloIA, setModeloIA] = useState<'fadr' | 'replicate' | 'local'>('replicate');
+
   // ... HOOK DE GERENCIAMENTO DE ARQUIVOS EXTERNO ...
   const {
     pastas, pastaAtual, arquivosPasta, modalNovaPasta, setModalNovaPasta, nomeNovaPasta, setNomeNovaPasta,
@@ -109,14 +112,36 @@ export default function IndexScreen() {
     importarArquivosLrc, apagarItemLrc, exportarArquivoBib, abrirRenomearBib, confirmarRenomearBib, apagarPeloModalOpcoes
   } = useLibraryManager(telaAtiva);
 
-  // ... HOOK DE REPRODUÇÃO DE ÁUDIO E VÍDEO ...
+    // ... HOOK DE REPRODUÇÃO DE ÁUDIO E VÍDEO ...
+  const audioEngine = useAudioEngine(motorBusca, pastasVirtuaisWeb, pastasVirtuaisLrcWeb);
   const {
     arquivoAudio, setArquivoAudio, audioUri, setAudioUri, audioPlayer, isPlaying, setIsPlaying, tempoAtual, setTempoAtual, duracaoTotal, setDuracaoTotal, tocarOuPausar, retrocederAudio, avancarAudio,
     playlist, setPlaylist, currentIndex, setCurrentIndex, reproducaoTemp, setReproducaoTemp, isPlaylistVisible, setIsPlaylistVisible, urlAudioExtraido, setUrlAudioExtraido, isExtracting, extrairAudioDoVideo, arquivoPro, player, tocarProxima, tocarAnterior, removerDaPlaylist, limparPlaylist, confirmarLimparPlaylist, adicionarNaPlaylist, moverItemFila, repararLinksDaFila,
     fonteBusca, setFonteBusca, buscaYoutube, setBuscaYoutube, resultadosYoutube, setResultadosYoutube, isBuscandoYt, setIsBuscandoYt, isBaixandoYt, setIsBaixandoYt, idBaixando, setIdBaixando, limparBusca, fazerBuscaYoutube, iniciarTocarYoutube,
     youtubePlayerRef, youtubeTimeRef,
     lrcAudioUri, setLrcAudioUri, lrcAudioPlayer, isLrcPlaying, setIsLrcPlaying, lrcTempoAtual, setLrcTempoAtual, lrcDuracaoTotal, setLrcDuracaoTotal, tocarOuPausarLrc
-  } = useAudioEngine(motorBusca, pastasVirtuaisWeb, pastasVirtuaisLrcWeb);
+  } = audioEngine;
+
+    // ... HOOK DE EQUALIZAÇÃO E MIXER ...
+  const webAudio = useWebAudioEffects(arquivoPro, lrcAudioUri);
+  const {
+    micAtivo, volMic, setVolMic, graveNivel, setGraveNivel, medioNivel, setMedioNivel, agudoNivel, setAgudoNivel,
+    echoNivel, setEchoNivel, echoTempo, setEchoTempo, echoFeedback, setEchoFeedback, reverbNivel, setReverbNivel, reverbTempo, setReverbTempo,
+    micDevices, selectedMicId, setSelectedMicId, mostrarInterfaces, setMostrarInterfaces, carregarDispositivosDeAudio, alternarMicrofone,
+    eqPlaybackAtivo, setEqPlaybackAtivo, eqPlaybackExpandido, setEqPlaybackExpandido, eqGrave, setEqGrave, eqMedio, setEqMedio, eqAgudo, setEqAgudo, eqGanho, setEqGanho
+  } = webAudio;
+
+  // ... HOOK DE INTELIGÊNCIA ARTIFICIAL ...
+  const karaokeAI = useKaraokeAI(arquivoAudio, modeloIA, setAudioUri);
+  const {
+    isProcessing, isExtractingLyrics, karaokePronto, urlPlayback, urlVoz,
+    processarKaraoke, setKaraokePronto, setUrlPlayback, setUrlVoz
+  } = karaokeAI;
+  
+  // Ponte de comunicação para o Hook de IA
+  const extrairLetraComIA = () => karaokeAI.extrairLetraComIA({
+      setNomeLetra, setLetras, setLinhasSync, setIndiceCriador, setIsModoCriador, setTelaAtiva, processarLRC
+  });
 
   // =========================================================================
   // FUNÇÕES DE PONTE (BIBLIOTECA E YOUTUBE)
@@ -170,10 +195,7 @@ export default function IndexScreen() {
   // =========================================================================
   // ESTADOS RESTAURADOS DA INTERFACE E MÁQUINA DE ESTADO (IA E REPRODUTOR)
   // =========================================================================
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  const [karaokePronto, setKaraokePronto] = useState<boolean>(false);
-  const [urlPlayback, setUrlPlayback] = useState<string | null>(null);
-  const [urlVoz, setUrlVoz] = useState<string | null>(null);
+  
   const [nomeLetra, setNomeLetra] = useState<string | null>(null);
   const [letras, setLetras] = useState<any[]>([]);
   const [lrcLetras, setLrcLetras] = useState<any[]>([]);
@@ -367,15 +389,11 @@ export default function IndexScreen() {
   const [buscaFila, setBuscaFila] = useState<string>('');
   const [mostrarBuscaFila, setMostrarBuscaFila] = useState<boolean>(false);
 
-  // --- NOVOS ESTADOS: CONFIGURAÇÕES E IA ---
-  const [modalConfigAberto, setModalConfigAberto] = useState<boolean>(false);
-  const [modeloIA, setModeloIA] = useState<'fadr' | 'replicate' | 'local'>('replicate');
-
   // --- ESTADOS: IA & LETRAS ---
     const [isModoCriador, setIsModoCriador] = useState<boolean>(false);
   const [linhasSync, setLinhasSync] = useState<{tempo: number | null, texto: string}[]>([]); 
   const [indiceCriador, setIndiceCriador] = useState<number>(0);
-  const [isExtractingLyrics, setIsExtractingLyrics] = useState<boolean>(false);
+  
 
   // --- ESTADOS: IMPORTAR YOUTUBE/SOUNDCLOUD NO ESTÚDIO ---
   const [fonteBuscaEstudio, setFonteBuscaEstudio] = useState<'youtube' | 'soundcloud'>('youtube');
@@ -411,69 +429,9 @@ export default function IndexScreen() {
 
   // // --- ESTADOS: MIXER & EFEITOS (KARAOKÊ AO VIVO) ---
   const [modalMixer, setModalMixer] = useState<boolean>(false);
-  const [micAtivo, setMicAtivo] = useState<boolean>(false);
-  const [volMic, setVolMic] = useState<number>(1.0);
   
-  // Controles do EQ
-  const [graveNivel, setGraveNivel] = useState<number>(0);
-  const [medioNivel, setMedioNivel] = useState<number>(0);
-  const [agudoNivel, setAgudoNivel] = useState<number>(0);
 
-  // Controles do Eco (Delay)
-  const [echoNivel, setEchoNivel] = useState<number>(0); // Volume do Eco
-  const [echoTempo, setEchoTempo] = useState<number>(0.3); // Velocidade (Delay Time)
-  const [echoFeedback, setEchoFeedback] = useState<number>(0.2); // Repetições
-
-  // Controles do Reverb
-  const [reverbNivel, setReverbNivel] = useState<number>(0); // Volume do Reverb
-  const [reverbTempo, setReverbTempo] = useState<number>(2.5); // Tamanho da Sala
-
-  // Referências
-  const [micDevices, setMicDevices] = useState<{label: string, deviceId: string}[]>([]);
-  const [selectedMicId, setSelectedMicId] = useState<string | null>(null);
-  const [mostrarInterfaces, setMostrarInterfaces] = useState<boolean>(false);
-  const audioContextRef = useRef<any>(null);
-  const micStreamRef = useRef<any>(null);
-  const nodesRef = useRef<any>({});
-
-  // --- ESTADOS: EQUALIZADOR DA MÚSICA (REPRODUTORES WEB) ---
-  const [eqPlaybackAtivo, setEqPlaybackAtivo] = useState<boolean>(false);
-  const [eqPlaybackExpandido, setEqPlaybackExpandido] = useState<boolean>(false);
-  const [eqGrave, setEqGrave] = useState<number>(0);
-  const [eqMedio, setEqMedio] = useState<number>(0);
-  const [eqAgudo, setEqAgudo] = useState<number>(0);
-  const [eqGanho, setEqGanho] = useState<number>(1);
-
-  // Referências para o Web Audio API do Playback
-  const eqContextRef = useRef<any>(null);
-  const eqSourceNodesRef = useRef<Map<HTMLMediaElement, any>>(new Map());
-  const eqFiltersRef = useRef<any>({});
-
-  // --- BUSCAR INTERFACES DE ÁUDIO NO NAVEGADOR ---
-  const carregarDispositivosDeAudio = async () => {
-    if (Platform.OS === 'web' && navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
-      try {
-        // Pede permissão rápida apenas para liberar os nomes (labels) reais das placas de som
-        await navigator.mediaDevices.getUserMedia({ audio: true });
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        
-        // Filtra para pegar apenas as entradas de microfone/linha
-        const audioInputs = devices.filter(device => device.kind === 'audioinput');
-        
-        setMicDevices(audioInputs.map(d => ({
-          label: d.label || `Interface USB (${d.deviceId.slice(0, 5)}...)`,
-          deviceId: d.deviceId
-        })));
-        
-        // Se ainda não tiver nenhum selecionado, seleciona o primeiro por padrão
-        if (audioInputs.length > 0 && !selectedMicId) {
-          setSelectedMicId(audioInputs[0].deviceId);
-        }
-      } catch (e) {
-        console.log("Erro ao carregar dispositivos de áudio", e);
-      }
-    }
-  };
+  
 
   // Carrega a lista toda vez que o modal do Mixer for aberto
   useEffect(() => {
@@ -1234,209 +1192,7 @@ export default function IndexScreen() {
     }
   };
 
-  const extrairLetraComIA = async () => {
-    if (!arquivoAudio) return alert("Selecione uma música primeiro para a IA escutar!");
-    setIsExtractingLyrics(true);
-    
-    try {
-      // 🛡️ PROTEÇÃO DEFINITIVA: Só chama a trava de tela se NÃO for Web
-      if (Platform.OS !== 'web') {
-        try { await activateKeepAwakeAsync(); } catch (e) {}
-      }
-
-      const formData = new FormData();
-
-      if (Platform.OS === 'web') {
-        if (arquivoAudio.file) {
-          formData.append('audio', arquivoAudio.file, arquivoAudio.name);
-        } else {
-          const response = await fetch(arquivoAudio.uri);
-          const blob = await response.blob();
-          formData.append('audio', blob, arquivoAudio.name);
-        }
-      } else {
-        formData.append('audio', { 
-          uri: arquivoAudio.uri, 
-          name: arquivoAudio.name, 
-          type: arquivoAudio.mimeType || 'audio/mpeg' 
-        } as any);
-      }
-
-      const resposta = await fetch(`${URL_SERVIDOR}/extrair_letra`, { method: 'POST', body: formData });
-      
-      if (!resposta.ok) throw new Error('Falha na comunicação');
-      const dados = await resposta.json();
-      
-      if (dados.sucesso && dados.lrc) {
-        setNomeLetra(`[IA] ${arquivoAudio.name}`);
-        
-        let conteudoFinal = dados.lrc;
-
-        if (conteudoFinal.includes('-->')) {
-          const linhas = conteudoFinal.split('\n');
-          let lrcConvertido = "";
-          const vttRegex = /(?:(\d{2,}):)?(\d{2}):(\d{2})[.,](\d{3})\s*-->/;
-          
-          for (let i = 0; i < linhas.length; i++) {
-            const linha = linhas[i].trim();
-            const match = vttRegex.exec(linha);
-            
-            if (match) {
-              const horas = match[1] ? parseInt(match[1], 10) : 0;
-              const min = parseInt(match[2], 10) + (horas * 60);
-              const seg = match[3];
-              const ms = match[4]; 
-              
-              let texto = "";
-              let j = i + 1;
-              while (j < linhas.length && linhas[j].trim() !== "" && !linhas[j].includes('-->')) {
-                texto += linhas[j].trim() + " ";
-                j++;
-              }
-              
-              lrcConvertido += `[${min.toString().padStart(2, '0')}:${seg}.${ms}] ${texto.trim()}\n`;
-            }
-          }
-          conteudoFinal = lrcConvertido;
-        }
-
-        const processado = processarLRC(conteudoFinal);
-        setLetras(processado);
-        setLinhasSync(processado.map((l: any) => ({ tempo: l.tempo, texto: l.texto })));
-        setIndiceCriador(processado.length); 
-        
-        setTelaAtiva('principal');
-        setIsModoCriador(true); 
-        alert("✅ Letra extraída com sucesso! Revise os tempos e clique em Salvar.");
-      } else {
-        alert("Erro da IA: " + (dados.erro || "Desconhecido"));
-      }
-    } catch (erro) {
-      alert("Erro ao conectar com o servidor para extrair a letra. Verifique o console do servidor Python.");
-    } finally {
-      setIsExtractingLyrics(false);
-      // 🛡️ Desliga a trava da tela com segurança
-      if (Platform.OS !== 'web') {
-        try { await deactivateKeepAwake(); } catch(e){} 
-      }
-    }
-  };
-
-  const processarKaraoke = async () => {
-    if (!arquivoAudio) return;
-    setIsProcessing(true); 
-    
-    try {
-      // 🛡️ PROTEÇÃO DEFINITIVA: Só chama a trava de tela se NÃO for Web
-      if (Platform.OS !== 'web') {
-        try { await activateKeepAwakeAsync(); } catch (e) {}
-      }
-      
-      const formData = new FormData();
-      
-      if (Platform.OS === 'web') {
-        if (arquivoAudio.file) {
-          formData.append('audio', arquivoAudio.file, arquivoAudio.name);
-        } else {
-          const response = await fetch(arquivoAudio.uri);
-          const blob = await response.blob();
-          formData.append('audio', blob, arquivoAudio.name);
-        }
-      } else {
-        formData.append('audio', { 
-          uri: arquivoAudio.uri, 
-          name: arquivoAudio.name, 
-          type: arquivoAudio.mimeType || 'audio/wav' 
-        } as any);
-      }
-
-      // ==========================================
-      // NOVA LÓGICA: SEPARAÇÃO POR MODELO DE IA
-      // ==========================================
-      if (modeloIA === 'replicate') {
-        // 1. Inicia o trabalho na Replicate e pega o ID
-        const initResponse = await fetch(`${URL_SERVIDOR}/separar_replicate`, { 
-          method: 'POST', 
-          body: formData 
-        });
-        
-        if (!initResponse.ok) throw new Error('Falha na conexão com o servidor');
-        const initData = await initResponse.json();
-        
-        if (!initData.sucesso || !initData.job_id) {
-          alert("❌ Erro no Processamento:\n" + (initData.erro || "Falha ao iniciar Replicate"));
-          return;
-        }
-
-        const jobId = initData.job_id;
-        const nomeBase = initData.nome_base || 'musica';
-        
-        let processando = true;
-        let tentativas = 0;
-        const MAX_TENTATIVAS = 100; // Máximo de 5 minutos (100 * 3s)
-
-        // 2. Polling: Pergunta ao servidor a cada 3 segundos se terminou
-        while (processando && tentativas < MAX_TENTATIVAS) {
-          await delay(3000); // Espera 3 segundos (certifique-se de ter a função delay criada)
-          tentativas++;
-
-          const statusResponse = await fetch(`${URL_SERVIDOR}/status_replicate/${jobId}?nome_base=${encodeURIComponent(nomeBase)}`);
-          const statusData = await statusResponse.json();
-
-          if (statusData.status === 'concluido') {
-            processando = false;
-            
-            // Sucesso! Atualiza os estados originais do seu app
-            setAudioUri(statusData.url); 
-            setKaraokePronto(true); 
-            setUrlPlayback(statusData.url); 
-            setUrlVoz(statusData.url_voz); 
-            
-          } else if (statusData.status === 'erro') {
-            processando = false;
-            alert("❌ Erro no Processamento:\n" + (statusData.erro || "Falha na Replicate"));
-            return;
-          }
-        }
-
-        if (tentativas >= MAX_TENTATIVAS) {
-          alert("❌ Erro: Tempo limite de processamento excedido.");
-          return;
-        }
-
-      } else {
-        // ==========================================
-        // LÓGICA ORIGINAL PARA FADR E LOCAL
-        // ==========================================
-        let rotaAPI = modeloIA === 'local' ? '/separar' : '/separar_fadr';
-
-        const resposta = await fetch(`${URL_SERVIDOR}${rotaAPI}`, { method: 'POST', body: formData });
-        
-        if (!resposta.ok) throw new Error('Falha na conexão com o servidor');
-        
-        const dados = await resposta.json();
-        
-        if (!dados.sucesso) {
-          alert("❌ Erro no Processamento:\n" + dados.erro);
-          return; 
-        }
-        
-        setAudioUri(dados.url); 
-        setKaraokePronto(true); 
-        setUrlPlayback(dados.url); 
-        setUrlVoz(dados.url_voz); 
-      }
-      
-    } catch (erro) { 
-      alert("Erro ao ligar ao servidor Python. Verifique se o servidor está a rodar."); 
-    } finally {
-      setIsProcessing(false); 
-      // 🛡️ Desliga a trava da tela com segurança
-      if (Platform.OS !== 'web') {
-        try { await deactivateKeepAwake(); } catch(e){}
-      }
-    }
-  };
+  
 
   
   const baixarECompartilhar = async (url: string, nomeFinal: string) => {
@@ -1873,270 +1629,7 @@ export default function IndexScreen() {
     .filter(item => buscaFila.trim() === '' || item.name.toLowerCase().includes(buscaFila.toLowerCase()));
 
 
-  // --- GERADOR DE REVERB VIRTUAL ---
-  const criarBufferReverb = (ctx: any, duracao: number, decaimento: number) => {
-    const taxaAmostragem = ctx.sampleRate;
-    const tamanho = taxaAmostragem * duracao;
-    const impulso = ctx.createBuffer(2, tamanho, taxaAmostragem);
-    const canalEsq = impulso.getChannelData(0);
-    const canalDir = impulso.getChannelData(1);
-    for (let i = 0; i < tamanho; i++) {
-      const n = i >= tamanho ? 0 : Math.pow(1 - i / tamanho, decaimento);
-      canalEsq[i] = (Math.random() * 2 - 1) * n;
-      canalDir[i] = (Math.random() * 2 - 1) * n;
-    }
-    return impulso;
-  };
-
-  // --- LÓGICA DO MICROFONE AO VIVO COM EFEITOS ---
-  const alternarMicrofone = async () => {
-    if (Platform.OS !== 'web') {
-      alert("No celular, o retorno de voz ao vivo requer um módulo nativo customizado (EAS Build). Teste esta função acessando o app pelo navegador do PC/Celular!");
-      return;
-    }
-
-    if (micAtivo) {
-      // DESLIGAR O MICROFONE
-      if (micStreamRef.current) {
-        micStreamRef.current.getTracks().forEach((track: any) => track.stop());
-      }
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-      }
-      setMicAtivo(false);
-    } else {
-      // LIGAR MICROFONE E MONTAR O MIXER
-      try {
-        const constraints: any = { 
-          echoCancellation: false, noiseSuppression: false, autoGainControl: false 
-        };
-        if (selectedMicId) {
-          constraints.deviceId = { exact: selectedMicId };
-        }
-
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: constraints });
-        micStreamRef.current = stream;
-        
-        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        audioContextRef.current = ctx;
-
-        // 1. Entrada (Microfone)
-        const source = ctx.createMediaStreamSource(stream);
-        
-        // 2. Volume do Microfone
-        const gainNode = ctx.createGain();
-        gainNode.gain.value = volMic;
-
-        // 3. Equalizador: Graves
-        const bassNode = ctx.createBiquadFilter();
-        bassNode.type = 'lowshelf';
-        bassNode.frequency.value = 250;
-        bassNode.gain.value = graveNivel;
-
-        // 3.5. Equalizador: Médios (NOVO)
-        const midNode = ctx.createBiquadFilter();
-        midNode.type = 'peaking';
-        midNode.frequency.value = 1000; // Frequência central da voz
-        midNode.Q.value = 1;
-        midNode.gain.value = medioNivel;
-
-        // 4. Equalizador: Agudos
-        const trebleNode = ctx.createBiquadFilter();
-        trebleNode.type = 'highshelf';
-        trebleNode.frequency.value = 4000;
-        trebleNode.gain.value = agudoNivel;
-
-        // 5. Efeito: Eco / Delay (Agora com Feedback/Repetições)
-        const delayNode = ctx.createDelay(3.0); // 3.0 é o limite máximo de segundos suportado
-        delayNode.delayTime.value = echoTempo;
-        const delayGain = ctx.createGain();
-        delayGain.gain.value = echoNivel;
-        
-        const feedbackGain = ctx.createGain(); // Nó que joga o som de volta pro início (Repetições)
-        feedbackGain.gain.value = echoFeedback;
-
-        // 6. Efeito: Reverb (Tamanho da Sala Variável)
-        const convolverNode = ctx.createConvolver();
-        convolverNode.buffer = criarBufferReverb(ctx, reverbTempo, 2.0);
-        const reverbGain = ctx.createGain();
-        reverbGain.gain.value = reverbNivel;
-
-        // Salva as referências atualizadas
-        nodesRef.current = { 
-          gainNode, bassNode, midNode, trebleNode, 
-          delayNode, delayGain, feedbackGain, 
-          convolverNode, reverbGain 
-        };
-
-        // 7. Conectando os cabos virtuais:
-        // Caminho do Som Principal: Mic -> EQs -> Volume -> Saída
-        source.connect(bassNode);
-        bassNode.connect(midNode);
-        midNode.connect(trebleNode);
-        trebleNode.connect(gainNode);
-        gainNode.connect(ctx.destination);
-
-        // Caminho do Eco (com Loop de Repetição)
-        trebleNode.connect(delayNode);
-        delayNode.connect(delayGain);
-        delayGain.connect(ctx.destination);
-        
-        // Loop mágico: Liga a saída do delay de volta na entrada dele através do controle de Feedback
-        delayNode.connect(feedbackGain);
-        feedbackGain.connect(delayNode);
-
-        // Caminho do Reverb
-        trebleNode.connect(convolverNode);
-        convolverNode.connect(reverbGain);
-        reverbGain.connect(ctx.destination);
-
-        setMicAtivo(true);
-      } catch (e) {
-        alert("Erro ao acessar o microfone. Verifique as permissões do navegador.");
-      }
-    }
-  };
-
-  // Efeito 1: Atualizar volumes, equalizador, velocidade e repetições do eco em tempo real
-  useEffect(() => {
-    if (micAtivo && nodesRef.current) {
-      if (nodesRef.current.gainNode) nodesRef.current.gainNode.gain.value = volMic;
-      if (nodesRef.current.bassNode) nodesRef.current.bassNode.gain.value = graveNivel;
-      if (nodesRef.current.midNode) nodesRef.current.midNode.gain.value = medioNivel;
-      if (nodesRef.current.trebleNode) nodesRef.current.trebleNode.gain.value = agudoNivel;
-      
-      // Novos controles do Eco
-      if (nodesRef.current.delayGain) nodesRef.current.delayGain.gain.value = echoNivel;
-      if (nodesRef.current.delayNode) nodesRef.current.delayNode.delayTime.value = echoTempo;
-      if (nodesRef.current.feedbackGain) nodesRef.current.feedbackGain.gain.value = echoFeedback;
-      
-      // Volume do Reverb
-      if (nodesRef.current.reverbGain) nodesRef.current.reverbGain.gain.value = reverbNivel;
-    }
-  }, [volMic, graveNivel, medioNivel, agudoNivel, echoNivel, echoTempo, echoFeedback, reverbNivel, micAtivo]);
-
-  // Efeito 2: Atualizar o Tamanho da Sala (Reverb) em tempo real
-  useEffect(() => {
-    if (micAtivo && audioContextRef.current && nodesRef.current?.convolverNode) {
-      // Quando o usuário arrasta o tamanho da sala, recriamos a simulação acústica
-      nodesRef.current.convolverNode.buffer = criarBufferReverb(audioContextRef.current, reverbTempo, 2.0);
-    }
-  }, [reverbTempo, micAtivo]);
-
-  // --- LÓGICA E INTERFACE: EQUALIZADOR DA MÚSICA (WEB) ---
-  useEffect(() => {
-    if (Platform.OS !== 'web') return;
-
-    const aplicarEqualizador = () => {
-      let mediaEl = null;
-      if (arquivoPro) {
-        mediaEl = document.querySelector('video');
-      } else if (lrcAudioUri) {
-        mediaEl = document.querySelector('audio');
-      } else {
-        mediaEl = document.querySelector('video') || document.querySelector('audio');
-      }
-
-      if (!mediaEl) return;
-
-      // ==========================================
-      // 1. O "TRANCO" DE SEGURANÇA (CORS)
-      // ==========================================
-      // Se o player ainda não tem a permissão, nós adicionamos e forçamos um recarregamento rápido.
-      if (mediaEl.getAttribute('crossorigin') !== 'anonymous') {
-        mediaEl.setAttribute('crossorigin', 'anonymous');
-        
-        // Salva onde a música parou
-        const tempoAtual = mediaEl.currentTime;
-        const isPausado = mediaEl.paused;
-        const urlOriginal = mediaEl.src;
-        
-        // Se já tiver uma música, tira e coloca de novo bem rápido
-        if (urlOriginal) {
-          mediaEl.src = '';
-          mediaEl.src = urlOriginal;
-          mediaEl.currentTime = tempoAtual;
-          
-          // Se estava tocando, manda tocar de novo
-          if (!isPausado) {
-            mediaEl.play().catch(e => console.log("Aguardando interação do usuário...", e));
-          }
-        }
-      }
-
-      // ==========================================
-      // 2. MONTAGEM DO CÉREBRO DE ÁUDIO
-      // ==========================================
-      if (!eqContextRef.current) {
-        eqContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-        
-        const bass = eqContextRef.current.createBiquadFilter();
-        bass.type = 'lowshelf'; bass.frequency.value = 250;
-        
-        const mid = eqContextRef.current.createBiquadFilter();
-        mid.type = 'peaking'; mid.frequency.value = 1000; mid.Q.value = 1;
-        
-        const treble = eqContextRef.current.createBiquadFilter();
-        treble.type = 'highshelf'; treble.frequency.value = 4000;
-
-        const booster = eqContextRef.current.createGain(); // <--- NOVO NÓ DE GANHO
-
-        eqFiltersRef.current = { bass, mid, treble, booster }; // <--- ADICIONADO AQUI
-      }
-
-      // Acorda o cérebro se o navegador tiver pausado ele
-      if (eqContextRef.current.state === 'suspended') {
-        eqContextRef.current.resume();
-      }
-
-      const ctx = eqContextRef.current;
-      const { bass, mid, treble, booster } = eqFiltersRef.current; // <--- PUXANDO O BOOSTER
-
-      // Atualiza os valores dos sliders
-      bass.gain.value = eqGrave;
-      mid.gain.value = eqMedio;
-      treble.gain.value = eqAgudo;
-      booster.gain.value = eqGanho; // <--- APLICA O VALOR DO SLIDER DE GANHO
-
-      // ==========================================
-      // 3. LIGAÇÃO DOS CABOS (COM PROTEÇÃO)
-      // ==========================================
-      let sourceNode = eqSourceNodesRef.current.get(mediaEl);
-      if (!sourceNode) {
-        try {
-          sourceNode = ctx.createMediaElementSource(mediaEl);
-          eqSourceNodesRef.current.set(mediaEl, sourceNode);
-        } catch (e) {
-          console.log("⚠️ Elemento já conectado ao Equalizador ou bloqueado pelo CORS.", e);
-          return; // Aborta para não quebrar o áudio original se der erro
-        }
-      }
-
-      // Desconecta tudo para remontar o caminho limpo
-      try {
-        sourceNode.disconnect();
-        booster.disconnect(); // <--- DESCONECTA O BOOSTER TAMBÉM
-        bass.disconnect();
-        mid.disconnect();
-        treble.disconnect();
-      } catch(e) {} // Ignora se já estiverem desconectados
-
-      // Monta os cabos: LIGADO vs DESLIGADO
-      if (eqPlaybackAtivo) {
-        sourceNode.connect(booster);  // Som -> Booster
-        booster.connect(bass);        // Booster -> Grave
-        bass.connect(mid);            // Grave -> Médio
-        mid.connect(treble);          // Médio -> Agudo
-        treble.connect(ctx.destination); // Agudo -> Saída (Caixa de som)
-      } else {
-        sourceNode.connect(ctx.destination); // Som original limpo e direto
-      }
-    };
-
-    // Dá um atraso maior (1 segundo) para garantir que o expo-video já desenhou e começou a carregar o vídeo na tela
-    setTimeout(aplicarEqualizador, 1000);
-
-  }, [eqPlaybackAtivo, eqGrave, eqMedio, eqAgudo, eqGanho, arquivoPro, lrcAudioUri]);
+  
 
   // Esta função desenha o painel para podermos usá-lo em qualquer tela sem repetir código
   const renderEqualizadorMusica = () => {
