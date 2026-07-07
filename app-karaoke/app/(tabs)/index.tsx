@@ -20,6 +20,8 @@ import { gerarHtmlMonitorExterno } from '../../src/utils/monitorTemplate';
 import TelaEstudioIA from '../../src/screens/TelaEstudioIA';
 import TelaReprodutorYoutube from '../../src/screens/TelaReprodutorYoutube';
 import TelaReprodutorLRC from '../../src/screens/TelaReprodutorLRC';
+import ModalDestinoDownload from '../../src/components/modals_extra/ModalDestinoDownload';
+import ModalBuscaLetra from '../../src/components/modals_extra/ModalBuscaLetra';
 
 
 // Quando colocar na nuvem ou ngrok, é só trocar este link inteiro!
@@ -2248,47 +2250,14 @@ export default function IndexScreen() {
       />
 
       {/* MODAL: DESTINO DO DOWNLOAD */}
-      <Modal visible={!!modalDestinoDownload} transparent={true} animationType="slide">
-        <View style={styles.modalCenterOverlay}>
-          <View style={styles.destinoBox}>
-            <Text style={styles.qualidadeTitle}>Onde deseja salvar?</Text>
-            <Text style={styles.qualidadeSubtitle} numberOfLines={2}>{modalDestinoDownload?.titulo}</Text>
-            
-            <TouchableOpacity style={styles.btnDestinoCelular} onPress={() => executarDownloadDestino('dispositivo')}>
-              <Ionicons name="phone-portrait" size={20} color="#FFF" style={{marginRight: 10}}/>
-              <Text style={styles.qualidadeBtnText}>Armazenamento do Celular</Text>
-            </TouchableOpacity>
-
-            <Text style={styles.divisorDestino}>--- OU NA BIBLIOTECA LOCAL ---</Text>
-
-            <ScrollView style={styles.destinoPastasScroll}>
-              {(pastas.length === 0 && Object.keys(pastasVirtuaisWeb).length === 0) ? (
-                <Text style={{color: '#777', textAlign: 'center', marginTop: 10}}>Nenhuma pasta criada na Biblioteca Local.</Text>
-              ) : (
-                <>
-                  {/* 1. RENDERIZA AS PASTAS FÍSICAS LOCAIS */}
-                  {pastas.map(pasta => (
-                    <TouchableOpacity key={pasta} style={styles.btnDestinoPasta} onPress={() => executarDownloadDestino('biblioteca', pasta)}>
-                      <Ionicons name="folder" size={20} color="#FFCA28" style={{marginRight: 10}}/>
-                      <Text style={styles.qualidadeBtnText}>{pasta}</Text>
-                    </TouchableOpacity>
-                  ))}
-
-                  {/* 2. RENDERIZA AS PASTAS VIRTUAIS (NO MODO WEB) -> CORREÇÃO AQUI */}
-                  {Platform.OS === 'web' && Object.keys(pastasVirtuaisWeb).map(pasta => (
-                    <TouchableOpacity key={pasta} style={styles.btnDestinoPasta} onPress={() => executarDownloadDestino('biblioteca', pasta)}>
-                      <Ionicons name="folder" size={20} color="#4CAF50" style={{marginRight: 10}}/>
-                      <Text style={styles.qualidadeBtnText}>{pasta} (Web)</Text>
-                    </TouchableOpacity>
-                  ))}
-                </>
-              )}
-            </ScrollView>
-
-            <TouchableOpacity style={styles.qualidadeCancelarBtn} onPress={() => setModalDestinoDownload(null)}><Text style={styles.qualidadeCancelarText}>Cancelar</Text></TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      <ModalDestinoDownload 
+         visivel={!!modalDestinoDownload}
+         config={modalDestinoDownload}
+         onClose={() => setModalDestinoDownload(null)}
+         pastas={pastas}
+         pastasVirtuaisWeb={pastasVirtuaisWeb}
+         executarDownload={executarDownloadDestino}
+      />
 
       {/* MODAL COMENTADO: AÇÃO YOUTUBE (TOCAR OU FILA) */}
       <Modal visible={!!modalAcaoYoutube} transparent={true} animationType="slide">
@@ -2356,66 +2325,19 @@ export default function IndexScreen() {
       </Modal>
 
       {/* MODAL DE BUSCA DE LETRA ONLINE */}
-      <Modal visible={modalBuscaLetra} transparent={true} animationType="fade">
-        <View style={styles.modalCenterOverlay}>
-          <View style={[styles.qualidadeBox, resultadosLrc.length > 0 && {height: '80%', width: '95%'}]}>
-            <Ionicons name="cloud-download" size={40} color="#2196F3" style={{marginBottom: 10}}/>
-            <Text style={styles.qualidadeTitle}>Baixar Letra Online</Text>
-            
-            {resultadosLrc.length === 0 ? (
-              // TELA 1: DIGITAR A PESQUISA
-              <>
-                <TextInput style={[styles.inputPasta, {marginBottom: 10, marginTop: 10}]} placeholder="Nome da Música (Obrigatório)" placeholderTextColor="#777" value={buscaTituloLrc} onChangeText={setBuscaTituloLrc} />
-                <TextInput style={styles.inputPasta} placeholder="Nome do Artista (Opcional)" placeholderTextColor="#777" value={buscaArtistaLrc} onChangeText={setBuscaArtistaLrc} />
-
-                {isBuscandoLrc ? (
-                  <ActivityIndicator size="large" color="#2196F3" style={{marginTop: 20}} />
-                ) : (
-                  <View style={{flexDirection: 'row', gap: 15, marginTop: 20}}>
-                    <TouchableOpacity style={styles.qualidadeCancelarBtn} onPress={() => { setModalBuscaLetra(false); setBuscaTituloLrc(''); setBuscaArtistaLrc(''); }}>
-                      <Text style={styles.qualidadeCancelarText}>Cancelar</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[styles.btnSalvarPasta, {backgroundColor: '#2196F3'}]} onPress={buscarLetraNaInternet}>
-                      <Text style={styles.btnSalvarPastaText}>Buscar</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </>
-            ) : (
-              // TELA 2: LISTA DE RESULTADOS
-              <>
-                <Text style={styles.qualidadeSubtitle}>{resultadosLrc.length} opções encontradas</Text>
-                
-                <FlatList 
-                  data={resultadosLrc} 
-                  keyExtractor={(item, index) => item.id ? item.id.toString() : index.toString()} 
-                  style={{width: '100%', marginVertical: 10}}
-                  showsVerticalScrollIndicator={false}
-                  renderItem={({item}) => (
-                    <TouchableOpacity style={styles.ytItem} onPress={() => selecionarLetraDaLista(item)}>
-                      <View style={{flex: 1, marginLeft: 10, justifyContent: 'center'}}>
-                        <Text style={styles.ytTitle} numberOfLines={1}>{item.trackName}</Text>
-                        <Text style={{color: '#A0A0A0', fontSize: 12}}>{item.artistName}</Text>
-                      </View>
-                      
-                      {/* ETIQUETA MOSTRANDO SE É SINCRONIZADA OU APENAS TEXTO */}
-                      <View style={{justifyContent: 'center', alignItems: 'center'}}>
-                        <View style={{paddingHorizontal: 8, paddingVertical: 4, backgroundColor: item.syncedLyrics ? '#4CAF50' : '#FF9800', borderRadius: 5}}>
-                          <Text style={{color: '#FFF', fontSize: 10, fontWeight: 'bold'}}>{item.syncedLyrics ? 'SINC (LRC)' : 'TEXTO'}</Text>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  )}
-                />
-
-                <TouchableOpacity style={styles.qualidadeCancelarBtn} onPress={() => setResultadosLrc([])}>
-                  <Text style={[styles.qualidadeCancelarText, {color: '#A0A0A0'}]}>⬅ Voltar / Nova Busca</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
+      <ModalBuscaLetra 
+         visivel={modalBuscaLetra}
+         onClose={() => { setModalBuscaLetra(false); setBuscaTituloLrc(''); setBuscaArtistaLrc(''); }}
+         buscaTituloLrc={buscaTituloLrc}
+         setBuscaTituloLrc={setBuscaTituloLrc}
+         buscaArtistaLrc={buscaArtistaLrc}
+         setBuscaArtistaLrc={setBuscaArtistaLrc}
+         isBuscandoLrc={isBuscandoLrc}
+         resultadosLrc={resultadosLrc}
+         setResultadosLrc={setResultadosLrc}
+         buscarLetraNaInternet={buscarLetraNaInternet}
+         selecionarLetraDaLista={selecionarLetraDaLista}
+      />
 
       {/* MODAL: ESCOLHER ORIGEM DA MÚSICA NO ESTÚDIO */}
       <Modal visible={modalOrigemMusica} transparent={true} animationType="fade">
@@ -3254,4 +3176,3 @@ export default function IndexScreen() {
     </SafeAreaView>
   );
 }
-
