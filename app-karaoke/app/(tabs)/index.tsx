@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Text, View, TouchableOpacity, ActivityIndicator, Platform, FlatList, Modal, TextInput, Image, Keyboard, ScrollView, useWindowDimensions, Linking, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context'; 
 import * as DocumentPicker from 'expo-document-picker';
-import { VideoView } from 'expo-video'; 
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import Slider from '@react-native-community/slider';
@@ -11,7 +10,6 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import ModalConfiguracoes from '../../src/components/modals/ModalConfiguracoes';
 import ModalQualidadeYoutube from '../../src/components/modals/ModalQualidadeYoutube';
 import ModalMixer from '../../src/components/modals/ModalMixer';
-import PainelEditorLRC from '../../src/components/PainelEditorLRC';
 import FilaReproducao from '../../src/components/FilaReproducao';
 import PainelBiblioteca from '../../src/components/PainelBiblioteca';
 import MenuLateral from '../../src/components/modals/MenuLateral';
@@ -19,7 +17,9 @@ import { ModalNovaPasta, ModalOrdem, ModalRenomearBib, ModalAcaoArquivo } from '
 import { useLibraryManager } from '../../src/hooks/useLibraryManager';
 import { useAudioEngine } from '../../src/hooks/useAudioEngine';
 import { gerarHtmlMonitorExterno } from '../../src/utils/monitorTemplate';
-import YoutubeIframe from 'react-native-youtube-iframe';
+import TelaEstudioIA from '../../src/screens/TelaEstudioIA';
+import TelaReprodutorYoutube from '../../src/screens/TelaReprodutorYoutube';
+import TelaReprodutorLRC from '../../src/screens/TelaReprodutorLRC';
 
 
 // Quando colocar na nuvem ou ngrok, é só trocar este link inteiro!
@@ -3027,950 +3027,146 @@ export default function IndexScreen() {
       {/* ========================================================= */}
 
       {/* --- TELA: REPRODUTOR LRC (KARAOKÊ) --- */}
-      <View style={[styles.lrcPlayerContainer, telaAtiva !== 'reprodutor_lrc' && { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, zIndex: -10, pointerEvents: 'none' }]}>
-        {(!lrcAudioUri || lrcLetras.length === 0) ? (
-            
-            /* TELA INICIAL DO LRC AGORA ROLA NO MODO PAISAGEM! */
-            <ScrollView 
-              style={{ flex: 1, width: '100%' }} 
-              contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 20, paddingBottom: 40 }} 
-              showsVerticalScrollIndicator={false}
-            >
-              <Ionicons name="mic-outline" size={80} color="#FF9800" style={{marginBottom: 20}} />
-              <Text style={styles.lrcSelectionTitle}>Karaokê LRC Player</Text>
-              <Text style={styles.lrcSelectionSub}>Selecione uma pasta da sua biblioteca ou arquivos avulsos!</Text>
-
-              <TouchableOpacity style={[styles.lrcSelectBtn, {backgroundColor: '#4CAF50'}]} 
-                onPress={() => { 
-                  if (Platform.OS === 'web') {
-                    adicionarPastaLrcPCWeb(); // Na Web, abre a pasta do Windows/Mac
-                  } else {
-                    inicializarBibliotecaLrc(); 
-                    setModalPastasLrc(true);  // No Celular, abre a biblioteca interna
-                  }
-                }}>
-                <Ionicons name="folder-open" size={24} color="#FFF" style={{marginRight: 10}} />
-                <Text style={styles.lrcSelectBtnText}>Tocar Pasta</Text>
-              </TouchableOpacity>
-
-              <Text style={{color: '#555', marginVertical: 10}}>--- OU MÚSICA AVULSA ---</Text>
-
-              <TouchableOpacity style={styles.lrcSelectBtn} onPress={selecionarAudioLrc}>
-                <Ionicons name="musical-note" size={24} color="#FFF" style={{marginRight: 10}} />
-                <Text style={styles.lrcSelectBtnText}>{lrcAudioUri && lrcPlaylist.length === 0 ? 'Áudio Selecionado ✔️' : 'Selecionar Áudio'}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={[styles.lrcSelectBtn, {backgroundColor: '#2196F3'}]} onPress={selecionarArquivoLrcParaTocar}>
-                <Ionicons name="document-text" size={24} color="#FFF" style={{marginRight: 10}} />
-                <Text style={styles.lrcSelectBtnText}>{lrcLetras.length > 0 && lrcPlaylist.length === 0 ? 'Letra Selecionada ✔️' : 'Selecionar LRC'}</Text>
-              </TouchableOpacity>
-            </ScrollView>
-
-          ) : (
-            <View style={[styles.lrcPlayingArea, { flexDirection: isLandscape ? 'row' : 'column' }]}>
-              
-              {/* === LADO ESQUERDO (Paisagem) / TOPO (Retrato) === */}
-              <View style={{ flex: isLandscape ? 1 : undefined, display: 'flex', flexDirection: 'column', justifyContent: isLandscape ? 'space-between' : 'flex-start' }}>
-                <View>
-                  <View style={styles.lrcMusicHeader}>
-                    <View style={styles.lrcAlbumArt}>
-                      {lrcCoverUrl ? (
-                        <Image source={{ uri: lrcCoverUrl }} style={{ width: 60, height: 60, borderRadius: 8 }} />
-                      ) : (
-                        <Ionicons name="musical-notes" size={40} color="#FF9800" />
-                      )}
-                    </View>
-                    <View style={styles.lrcMusicInfo}>
-                      <Text style={styles.lrcMusicTitle} numberOfLines={1}>{lrcMetaInfo.title}</Text>
-                      <Text style={styles.lrcMusicArtist} numberOfLines={1}>{lrcMetaInfo.artist}</Text>
-                    </View>
-                    
-                    <TouchableOpacity onPress={abrirEditorDoLrc} style={{marginRight: 15}}>
-                      <Ionicons name="create-outline" size={28} color="#2196F3" />
-                    </TouchableOpacity>
-
-                    {/* BOTÃO DO MIXER (AO VIVO) */}
-                    <TouchableOpacity onPress={() => setModalMixer(true)} style={{marginRight: 15}}>
-                      <Ionicons name="options-outline" size={26} color="#4CAF50" />
-                    </TouchableOpacity>
-
-                    {lrcPlaylist.length > 0 && (
-                      <TouchableOpacity onPress={() => setIsLrcPlaylistVisible(!isLrcPlaylistVisible)}>
-                        <Ionicons name="list" size={28} color={isLrcPlaylistVisible ? "#FF9800" : "#FFF"} style={{marginRight: 15}}/>
-                      </TouchableOpacity>
-                    )}
-
-                    <TouchableOpacity onPress={() => { setLrcAudioUri(null); setLrcLetras([]); setIsLrcPlaying(false); setLrcPlaylist([]); setLrcCurrentIndex(-1); setIsLrcPlaylistVisible(false); setLrcCoverUrl(null); }}>
-                      <Ionicons name="close-circle" size={28} color="#E50914" />
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* LISTA DA PLAYLIST LRC */}
-                  {isLrcPlaylistVisible && lrcPlaylist.length > 0 && (
-                    <View style={{maxHeight: 250, backgroundColor: '#161616', borderBottomWidth: 1, borderBottomColor: '#333'}}>
-                      <View style={{padding: 10, backgroundColor: '#111', flexDirection: 'row', justifyContent: 'space-between'}}>
-                        <Text style={{color: '#FF9800', fontWeight: 'bold'}}>Fila da Pasta ({lrcPlaylist.length} músicas)</Text>
-                      </View>
-                      <FlatList data={lrcPlaylist} keyExtractor={item => item.id}
-                        renderItem={({item, index}) => (
-                          <TouchableOpacity style={[styles.queueItem, lrcCurrentIndex === index && styles.queueItemActive, {paddingHorizontal: 20}]} onPress={() => { tocarItemLrc(lrcPlaylist, index); setIsLrcPlaylistVisible(false); }}>
-                             <Ionicons name={lrcCurrentIndex === index ? "musical-notes" : "play"} size={16} color={lrcCurrentIndex === index ? "#FF9800" : "#A0A0A0"} style={{ marginRight: 10 }} />
-                             <Text style={[styles.queueItemText, lrcCurrentIndex === index && {color: '#FF9800', fontWeight: 'bold'}]} numberOfLines={1}>{item.name}</Text>
-                          </TouchableOpacity>
-                        )}
-                      />
-                    </View>
-                  )}
-                </View>
-
-                {/* CONTROLES: Ficam embutidos na esquerda se for Paisagem */}
-                {isLandscape && (
-                  <View style={[styles.lrcBottomControlBar, { borderTopWidth: 0, paddingBottom: 10, paddingHorizontal: 10 }]}>
-                    <View style={styles.lrcSliderContainer}>
-                      {/* ===== COLOQUE O EQUALIZADOR AQUI ===== */}
-                      {renderEqualizadorMusica()}
-                      <Text style={styles.lrcTimeText}>{formatarTempo(lrcTempoAtual)}</Text>
-                      <Slider style={styles.lrcSlider} minimumValue={0} maximumValue={lrcDuracaoTotal || 1} value={lrcTempoAtual} onSlidingComplete={(valor) => { if (lrcAudioPlayer) lrcAudioPlayer.seekTo(valor); setLrcTempoAtual(valor); }} minimumTrackTintColor="#FF9800" maximumTrackTintColor="#555" thumbTintColor="#FF9800" />
-                      <Text style={styles.lrcTimeText}>{formatarTempo(lrcDuracaoTotal)}</Text>
-                    </View>
-
-                    <View style={styles.lrcButtonsContainer}>
-                      <TouchableOpacity onPress={lrcPlaylist.length > 0 ? anteriorLrc : () => { if(lrcAudioPlayer) lrcAudioPlayer.seekTo(Math.max(0, lrcTempoAtual - 10)); }}>
-                        <Ionicons name={lrcPlaylist.length > 0 ? "play-skip-back" : "play-back"} size={32} color={lrcPlaylist.length > 0 && lrcCurrentIndex === 0 ? "#555" : "#FFF"} />
-                      </TouchableOpacity>
-                      
-                      <TouchableOpacity onPress={tocarOuPausarLrc} style={styles.lrcPlayBtnMain}>
-                        <Ionicons name={isLrcPlaying ? "pause" : "play"} size={40} color="#000" />
-                      </TouchableOpacity>
-                      
-                      <TouchableOpacity onPress={lrcPlaylist.length > 0 ? proximaLrc : () => { if(lrcAudioPlayer) lrcAudioPlayer.seekTo(Math.min(lrcDuracaoTotal, lrcTempoAtual + 10)); }}>
-                        <Ionicons name={lrcPlaylist.length > 0 ? "play-skip-forward" : "play-forward"} size={32} color={lrcPlaylist.length > 0 && lrcCurrentIndex === lrcPlaylist.length - 1 ? "#555" : "#FFF"} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )}
-              </View>
-
-              {/* === LADO DIREITO (Paisagem) / MEIO (Retrato) : A LETRA === */}
-              <View style={{ flex: isLandscape ? 1.5 : 1 }}>
-                <FlatList
-                  ref={lrcListRef}
-                  data={lrcLetras}
-                  keyExtractor={(item, idx) => idx.toString()}
-                  style={styles.lrcLyricsList}
-                  contentContainerStyle={{ paddingVertical: isLandscape ? 50 : 180 }}
-                  showsVerticalScrollIndicator={false}
-                  onScrollToIndexFailed={(info) => {
-                    setTimeout(() => { lrcListRef.current?.scrollToIndex({ index: info.index, animated: true, viewPosition: 0.5 }); }, 500);
-                  }}
-                  renderItem={({ item, index }) => {
-                    const isActive = index === lrcIndiceAtivo;
-                    return (
-                      <Text style={[styles.lrcLyricLine, isActive && styles.lrcLyricLineActive]}>
-                        {item.texto}
-                      </Text>
-                    );
-                  }}
-                />
-              </View>
-
-              {/* CONTROLES: Ficam na base se for Retrato */}
-              {!isLandscape && (
-                <View style={styles.lrcBottomControlBar}>
-                  <View style={styles.lrcSliderContainer}>
-                    {/* ===== COLOQUE O EQUALIZADOR AQUI ===== */}
-                    {renderEqualizadorMusica()}
-                    <Text style={styles.lrcTimeText}>{formatarTempo(lrcTempoAtual)}</Text>
-                    <Slider style={styles.lrcSlider} minimumValue={0} maximumValue={lrcDuracaoTotal || 1} value={lrcTempoAtual} onSlidingComplete={(valor) => { if (lrcAudioPlayer) lrcAudioPlayer.seekTo(valor); setLrcTempoAtual(valor); }} minimumTrackTintColor="#FF9800" maximumTrackTintColor="#555" thumbTintColor="#FF9800" />
-                    <Text style={styles.lrcTimeText}>{formatarTempo(lrcDuracaoTotal)}</Text>
-                  </View>
-
-                  <View style={styles.lrcButtonsContainer}>
-                    <TouchableOpacity onPress={lrcPlaylist.length > 0 ? anteriorLrc : () => { if(lrcAudioPlayer) lrcAudioPlayer.seekTo(Math.max(0, lrcTempoAtual - 10)); }}>
-                      <Ionicons name={lrcPlaylist.length > 0 ? "play-skip-back" : "play-back"} size={32} color={lrcPlaylist.length > 0 && lrcCurrentIndex === 0 ? "#555" : "#FFF"} />
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity onPress={tocarOuPausarLrc} style={styles.lrcPlayBtnMain}>
-                      <Ionicons name={isLrcPlaying ? "pause" : "play"} size={40} color="#000" />
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity onPress={lrcPlaylist.length > 0 ? proximaLrc : () => { if(lrcAudioPlayer) lrcAudioPlayer.seekTo(Math.min(lrcDuracaoTotal, lrcTempoAtual + 10)); }}>
-                      <Ionicons name={lrcPlaylist.length > 0 ? "play-skip-forward" : "play-forward"} size={32} color={lrcPlaylist.length > 0 && lrcCurrentIndex === lrcPlaylist.length - 1 ? "#555" : "#FFF"} />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-
-            </View>
-          )}
-        </View>
+      {telaAtiva === 'reprodutor_lrc' && (
+        <TelaReprodutorLRC
+          telaAtiva={telaAtiva}
+          lrcAudioUri={lrcAudioUri}
+          lrcLetras={lrcLetras}
+          isLandscape={isLandscape}
+          lrcPlaylist={lrcPlaylist}
+          inicializarBibliotecaLrc={inicializarBibliotecaLrc}
+          setModalPastasLrc={setModalPastasLrc}
+          selecionarAudioLrc={selecionarAudioLrc}
+          selecionarArquivoLrcParaTocar={selecionarArquivoLrcParaTocar}
+          lrcCoverUrl={lrcCoverUrl}
+          lrcMetaInfo={lrcMetaInfo}
+          abrirEditorDoLrc={abrirEditorDoLrc}
+          setModalMixer={setModalMixer}
+          isLrcPlaylistVisible={isLrcPlaylistVisible}
+          setIsLrcPlaylistVisible={setIsLrcPlaylistVisible}
+          lrcCurrentIndex={lrcCurrentIndex}
+          tocarItemLrc={tocarItemLrc}
+          lrcTempoAtual={lrcTempoAtual}
+          lrcDuracaoTotal={lrcDuracaoTotal}
+          lrcAudioPlayer={lrcAudioPlayer}
+          setLrcTempoAtual={setLrcTempoAtual}
+          anteriorLrc={anteriorLrc}
+          tocarOuPausarLrc={tocarOuPausarLrc}
+          isLrcPlaying={isLrcPlaying}
+          proximaLrc={proximaLrc}
+          lrcIndiceAtivo={lrcIndiceAtivo}
+          lrcListRef={lrcListRef}
+          renderEqualizadorMusica={renderEqualizadorMusica}
+          formatarTempo={formatarTempo}
+          adicionarPastaLrcPCWeb={adicionarPastaLrcPCWeb}
+        />
+      )}
 
       {/* --- TELA PRINCIPAL (IA E EDITOR) --- */}
-      <View style={[styles.mainArea, isModoCriador && { paddingHorizontal: 0, paddingTop: 0 }, telaAtiva !== 'principal' && { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, zIndex: -10, pointerEvents: 'none' }]}>
-        {isModoCriador ? (
-            /* ================================================= */
-            /* NOVO EDITOR LRC PROFISSIONAL                      */
-            /* ================================================= */
-            <PainelEditorLRC 
-              isModoCriador={isModoCriador}
-              setIsModoCriador={setIsModoCriador}
-              setModalSyncMassa={setModalSyncMassa}
-              abrirModalSalvarLRC={abrirModalSalvarLRC}
-              linhasSync={linhasSync}
-              indiceCriador={indiceCriador}
-              ajustarTempoLinha={ajustarTempoLinha}
-              formatarTempoMs={formatarTempoMs}
-              editarTextoLinha={editarTextoLinha}
-              apagarTempoLinha={apagarTempoLinha}
-              arquivoAudio={arquivoAudio}
-              tempoAtual={tempoAtual}
-              duracaoTotal={duracaoTotal}
-              formatarTempo={formatarTempo}
-              audioPlayer={audioPlayer}
-              setTempoAtual={setTempoAtual}
-              retrocederAudio={retrocederAudio}
-              tocarOuPausar={tocarOuPausar}
-              isPlaying={isPlaying}
-              avancarAudio={avancarAudio}
-              registrarTempo={registrarTempo}
-            />
-          ) : (
-            /* ================================================= */
-            /* TELA PRINCIPAL NORMAL (IA)                        */
-            /* ================================================= */
-            <ScrollView 
-              style={{width: '100%', flex: 1}} 
-              contentContainerStyle={{alignItems: 'center', paddingBottom: 100}} 
-              showsVerticalScrollIndicator={false}
-            >
-              
-              <View style={styles.studioTopHeader}>
-                <View style={styles.iconGlow}><Ionicons name="color-wand" size={32} color="#FFF" /></View>
-                <Text style={styles.studioTitle}>Estúdio IA</Text>
-                <Text style={styles.studioSub}>Separação de Voz e Sincronização de Letras</Text>
-              </View>
-
-              <View style={styles.uploadCard}>
-                <TouchableOpacity style={styles.uploadBtnPrimary} onPress={abrirSelecaoMusica}>
-                  <Ionicons name={arquivoAudio ? "checkmark-circle" : "musical-notes"} size={22} color="#FFF" style={{marginRight: 10}}/>
-                  <Text style={styles.uploadBtnText}>{arquivoAudio ? 'Música Selecionada' : 'Escolher Música (Áudio)'}</Text>
-                </TouchableOpacity>
-                {arquivoAudio && <Text style={styles.fileNameText} numberOfLines={1}>{arquivoAudio.name}</Text>}
-
-                <View style={styles.divisorUpload} />
-
-                <TouchableOpacity style={styles.uploadBtnSecondary} onPress={abrirSelecaoLetra}>
-                  <Ionicons name={nomeLetra ? "checkmark-circle" : "document-text"} size={22} color="#FFF" style={{marginRight: 10}}/>
-                  <Text style={styles.uploadBtnText}>{nomeLetra ? 'Letra Local Selecionada' : 'Escolher Letra Local (.txt / .lrc)'}</Text>
-                </TouchableOpacity>
-
-                {/* NOVO BOTÃO DE BUSCA ONLINE */}
-                <TouchableOpacity style={[styles.uploadBtnSecondary, {backgroundColor: '#2196F3', marginTop: 10}]} onPress={() => setModalBuscaLetra(true)}>
-                  <Ionicons name="globe" size={22} color="#FFF" style={{marginRight: 10}}/>
-                  <Text style={styles.uploadBtnText}> Buscar Letra Online</Text>
-                </TouchableOpacity>
-
-                {/* A MÁGICA: BOTÃO DA IA WHISPER */}
-                <TouchableOpacity 
-                  style={[styles.uploadBtnSecondary, {backgroundColor: '#9C27B0', marginTop: 10, opacity: !arquivoAudio || isExtractingLyrics ? 0.6 : 1}]} 
-                  onPress={extrairLetraComIA}
-                  disabled={!arquivoAudio || isExtractingLyrics}
-                >
-                  {isExtractingLyrics ? (
-                     <ActivityIndicator size="small" color="#FFF" style={{marginRight: 10}} />
-                  ) : (
-                     <Ionicons name="sparkles" size={22} color="#FFF" style={{marginRight: 10}}/>
-                  )}
-                  <Text style={styles.uploadBtnText}>{isExtractingLyrics ? 'IA Ouvindo e Escrevendo...' : 'Extrair Letra com IA (Áudio)'}</Text>
-                </TouchableOpacity>
-
-                {nomeLetra && <Text style={styles.fileNameText} numberOfLines={1}>{nomeLetra}</Text>}
-              </View>
-              
-              {arquivoAudio && (
-                <View style={[styles.playerContainer, { flex: 0 }]}>
-                  {isProcessing ? (
-                    <View style={styles.loadingContainer}>
-                      <ActivityIndicator size="large" color="#E50914" /><Text style={styles.loadingText}>A remover a voz com IA...</Text>
-                    </View>
-                  ) : (
-                    <>
-                      {audioUri && (
-                        <View style={styles.sliderContainer}>
-                          <Text style={styles.tempoText}>{formatarTempo(tempoAtual)}</Text>
-                          <Slider style={styles.slider} minimumValue={0} maximumValue={duracaoTotal || 1} value={tempoAtual} onSlidingComplete={(valor) => { if (audioPlayer) audioPlayer.seekTo(valor); setTempoAtual(valor); }} minimumTrackTintColor="#E50914" maximumTrackTintColor="#A0A0A0" thumbTintColor="#E50914" />
-                          <Text style={styles.tempoText}>{formatarTempo(duracaoTotal)}</Text>
-                        </View>
-                      )}
-                      <View style={styles.actionButtons}>
-                        <TouchableOpacity style={[styles.playButton, isPlaying ? styles.pauseButton : null]} onPress={tocarOuPausar}><Text style={styles.playButtonText}>{isPlaying ? '⏸ Pausar' : '▶️ Tocar'}</Text></TouchableOpacity>
-                        {!karaokePronto && (
-                          <TouchableOpacity style={styles.karaokeButton} onPress={processarKaraoke}>
-                            <Text style={styles.karaokeButtonText}>
-                              Criar Karaokê ({modeloIA === 'fadr' ? 'FADR' : modeloIA === 'replicate' ? 'Replicate' : 'Local'})
-                            </Text>
-                          </TouchableOpacity>
-                        )}
-                        {karaokePronto && (
-                          <>
-                            <TouchableOpacity style={styles.saveButton} onPress={() => baixarECompartilhar(urlPlayback!, `Karaoke_${arquivoAudio.name.split('.')[0]}.wav`)}><Text style={styles.saveButtonText}>💾 Instrumental</Text></TouchableOpacity>
-                            <TouchableOpacity style={styles.voiceButton} onPress={() => baixarECompartilhar(urlVoz!, `Vozes_${arquivoAudio.name.split('.')[0]}.wav`)}><Text style={styles.saveButtonText}>🎙️ Vozes</Text></TouchableOpacity>
-                          </>
-                        )}
-                      </View>
-                    </>
-                  )}
-
-                  {linhasSync.length > 0 && !isProcessing && (
-                     <TouchableOpacity style={styles.creatorToggleButton} onPress={() => setIsModoCriador(true)}>
-                       <Text style={styles.creatorToggleText}>🛠 Abrir Editor LRC Profissional</Text>
-                     </TouchableOpacity>
-                  )}
-
-                  {karaokePronto && !isProcessing && letras.length > 0 && (
-                    <View style={[styles.lyricsBox, { flex: 0, height: 400, marginTop: 15 }]}>
-                      <FlatList 
-                        ref={flatListRef} 
-                        data={letras} 
-                        keyExtractor={(i, idx) => idx.toString()} 
-                        showsVerticalScrollIndicator={false} 
-                        contentContainerStyle={{ paddingVertical: 120 }} 
-                        nestedScrollEnabled={true}
-                        renderItem={({ item, index }) => <Text style={[styles.lyricText, index === indiceAtivo ? styles.lyricActive : null]}>{item.texto}</Text>}
-                        onScrollToIndexFailed={(info) => { setTimeout(() => { flatListRef.current?.scrollToIndex({ index: info.index, animated: true, viewPosition: 0.5 }); }, 500); }}
-                      />
-                    </View>
-                  )}
-                </View>
-              )}
-            </ScrollView>
-          )}
-        </View>
+      {telaAtiva === 'principal' && (
+        <TelaEstudioIA 
+            telaAtiva={telaAtiva} 
+            audioUri={audioUri}    
+            isModoCriador={isModoCriador}
+            setIsModoCriador={setIsModoCriador}
+            arquivoAudio={arquivoAudio}
+            isExtractingLyrics={isExtractingLyrics}
+            extrairLetraComIA={extrairLetraComIA}
+            abrirSelecaoMusica={abrirSelecaoMusica}
+            nomeLetra={nomeLetra}
+            abrirSelecaoLetra={abrirSelecaoLetra}
+            setModalBuscaLetra={setModalBuscaLetra}
+            tempoAtual={tempoAtual}
+            duracaoTotal={duracaoTotal}
+            audioPlayer={audioPlayer}
+            setTempoAtual={setTempoAtual}
+            isPlaying={isPlaying}
+            tocarOuPausar={tocarOuPausar}
+            processarKaraoke={processarKaraoke}
+            karaokePronto={karaokePronto}
+            isProcessing={isProcessing}
+            urlPlayback={urlPlayback}
+            urlVoz={urlVoz}
+            baixarECompartilhar={baixarECompartilhar}
+            linhasSync={linhasSync}
+            letras={letras}
+            indiceAtivo={indiceAtivo}
+            flatListRef={flatListRef}
+            modeloIA={modeloIA}
+            setModalSyncMassa={setModalSyncMassa}
+            abrirModalSalvarLRC={abrirModalSalvarLRC}
+            indiceCriador={indiceCriador}
+            ajustarTempoLinha={ajustarTempoLinha}
+            formatarTempoMs={formatarTempoMs}
+            editarTextoLinha={editarTextoLinha}
+            apagarTempoLinha={apagarTempoLinha}
+            formatarTempo={formatarTempo}
+            retrocederAudio={retrocederAudio}
+            avancarAudio={avancarAudio}
+            registrarTempo={registrarTempo}
+        />
+      )}
 
       {/* --- TELA REPRODUTOR E YOUTUBE --- */}
-      <View style={[
-        { flex: 1, width: '100%' },
-        telaAtiva !== 'reprodutor' && { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, zIndex: -10, pointerEvents: 'none' }
-      ]}>
-          {/* ========================================================== */}
-          {/* MODO RETRATO (EM PÉ): Listas independentes (FlatList), Vídeo fixo */}
-          {/* ========================================================== */}
-          {!isLandscape && (
-             <View style={{ flex: 1, width: '100%', backgroundColor: '#1E1E1E', padding: 15, paddingTop: 5 }}>
-                
-                {/* 1. BARRA DE PESQUISA */}
-                <View style={styles.searchContainer}>
-                  <View style={styles.inputWrapper}>
-                    <TextInput style={styles.searchInput} placeholder="Digite aqui..." placeholderTextColor="#A0A0A0" value={buscaYoutube} onChangeText={setBuscaYoutube} onSubmitEditing={fazerBuscaYoutube} />
-                    {buscaYoutube.length > 0 && <TouchableOpacity style={styles.clearInputIcon} onPress={limparBusca}><Ionicons name="close-circle" size={20} color="#A0A0A0" /></TouchableOpacity>}
-                  </View>
-                  
-                  <TouchableOpacity style={styles.searchButton} onPress={fazerBuscaYoutube}>
-                    <Ionicons name="search" size={20} color="#FFF" />
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity style={[styles.searchButton, { backgroundColor: isPlaylistVisible ? '#4CAF50' : '#555', marginLeft: 10 }]} onPress={() => setIsPlaylistVisible(!isPlaylistVisible)}>
-                    <Ionicons name="list" size={20} color="#FFF" />
-                  </TouchableOpacity>
-                </View>
-
-                {/* NOVO: SELETOR DE PLATAFORMA (YOUTUBE / SOUNDCLOUD) */}
-                <View style={{flexDirection: 'row', gap: 10, marginBottom: 15, paddingHorizontal: 5}}>
-                  <TouchableOpacity 
-                    style={{flex: 1, backgroundColor: fonteBusca === 'youtube' ? '#E50914' : '#333', paddingVertical: 8, borderRadius: 20, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', borderWidth: 1, borderColor: fonteBusca === 'youtube' ? '#FFF' : 'transparent'}} 
-                    onPress={() => { setFonteBusca('youtube'); setResultadosYoutube([]); }}>
-                    <Ionicons name="logo-youtube" size={16} color="#FFF" style={{marginRight: 5}}/>
-                    <Text style={{color: '#FFF', fontWeight: 'bold', fontSize: 13}}>YouTube</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity 
-                    style={{flex: 1, backgroundColor: fonteBusca === 'soundcloud' ? '#FF5500' : '#333', paddingVertical: 8, borderRadius: 20, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', borderWidth: 1, borderColor: fonteBusca === 'soundcloud' ? '#FFF' : 'transparent'}} 
-                    onPress={() => { setFonteBusca('soundcloud'); setResultadosYoutube([]); }}>
-                    <Ionicons name="cloud" size={16} color="#FFF" style={{marginRight: 5}}/>
-                    <Text style={{color: '#FFF', fontWeight: 'bold', fontSize: 13}}>SoundCloud</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {isBuscandoYt && <ActivityIndicator size="large" color="#E50914" style={{ marginTop: 20 }} />}
-
-                {/* 2. RESULTADOS DA BUSCA (FLATLIST) */}
-                {resultadosYoutube.length > 0 && (
-                  <View style={{ width: '100%', maxHeight: (arquivoPro || isPlaylistVisible) ? 220 : undefined, flex: (arquivoPro || isPlaylistVisible) ? 0 : 1, borderBottomWidth: 1, borderBottomColor: '#333', paddingBottom: 10, marginBottom: 10 }}>
-                    <View style={styles.resultsHeader}>
-                      <Text style={styles.resultsHeaderText}>
-                        {resultadosYoutube.length} resultados {resultadosYoutube[0]?.isLocal ? '(Biblioteca Local)' : '(YouTube)'}
-                      </Text>
-                      <TouchableOpacity style={styles.closeResultsButton} onPress={limparBusca}><Ionicons name="close" size={16} color="#FFF" /><Text style={styles.closeResultsText}>Fechar Busca</Text></TouchableOpacity>
-                    </View>
-                    <FlatList 
-                      data={resultadosYoutube} 
-                      keyExtractor={(item) => item.id} 
-                      style={{ width: '100%' }} 
-                      showsVerticalScrollIndicator={false}
-                      renderItem={({ item }) => (
-                        <View style={styles.ytItem}>
-                            <TouchableOpacity style={styles.ytThumbContainer} onPress={() => {
-                              if (item.isLocal) { 
-                                // CORREÇÃO: Toca a música local como avulsa (temporária) para não apagar a fila!
-                                setReproducaoTemp({ uri: item.id, name: `[Tocando Agora] ${item.titulo}` }); 
-                                setUrlAudioExtraido(null);
-                                setIsPlaylistVisible(false); 
-                              } 
-                              else { setModalAcaoYoutube({ id: item.id, titulo: item.titulo, source: item.source }); }
-                            }}>
-                              {item.thumb ? <Image source={{ uri: item.thumb }} style={styles.ytThumb} /> : <View style={[styles.ytThumb, {backgroundColor: item.source === 'soundcloud' ? '#FF5500' : '#333', justifyContent: 'center', alignItems: 'center'}]}><Ionicons name={item.source === 'soundcloud' ? "cloud" : "folder"} size={30} color="#FFF" /></View>}
-                              <View style={styles.playOverlay}><Ionicons name="play" size={36} color="#FFF" /></View>
-                            </TouchableOpacity>
-
-                            <View style={styles.ytInfo}>
-                              <Text style={styles.ytTitle} numberOfLines={2}>{item.titulo}</Text>
-                              <View style={styles.ytButtons}>
-                                {isBaixandoYt && idBaixando === item.id ? (
-                                  <View style={{flexDirection: 'row', alignItems: 'center', marginTop: 5}}><ActivityIndicator size="small" color="#E50914" style={{marginRight: 8}} /><Text style={{color: '#A0A0A0', fontSize: 12}}>Carregando...</Text></View>
-                                ) : item.isLocal ? (
-                                  <TouchableOpacity style={styles.ytBtnAudio} onPress={() => { adicionarNaPlaylist(item.id, item.titulo); alert("Adicionado à Lista de Reprodução!"); }}>
-                                    <Ionicons name="add" size={14} color="#FFF" /><Text style={styles.ytBtnText}>Adicionar à Fila</Text>
-                                  </TouchableOpacity>
-                                ) : (
-                                  <>
-                                    <TouchableOpacity style={[styles.ytBtnVideo, item.source === 'soundcloud' && {backgroundColor: '#FF5500'}]} onPress={() => setModalQualidadeYt({ id: item.id, titulo: item.titulo, tipo: 'video', acao: 'baixar', source: item.source })}><Ionicons name="download" size={14} color="#FFF" /><Text style={styles.ytBtnText}>Vídeo</Text></TouchableOpacity>
-                                    
-                                    <TouchableOpacity style={[styles.ytBtnAudio, item.source === 'soundcloud' && {backgroundColor: '#E64A19'}]} onPress={() => setModalQualidadeYt({ id: item.id, titulo: item.titulo, tipo: 'audio', acao: 'baixar', source: item.source })}><Ionicons name="download" size={14} color="#FFF" /><Text style={styles.ytBtnText}>Áudio</Text></TouchableOpacity>
-                                    
-                                    {/* NOVO BOTÃO DE PRÉVIA INTELIGENTE */}
-                                    <TouchableOpacity style={[styles.ytBtnVideo, {backgroundColor: item.source === 'soundcloud' ? '#BF360C' : '#E50914'}]} onPress={() => {
-                                      const urlPreview = item.source === 'soundcloud' ? item.id : `https://www.youtube.com/watch?v=${item.id}`;
-                                      if (Platform.OS === 'web') {
-                                        window.open(urlPreview, 'PreviaPopUp', 'width=500,height=350,toolbar=no,menubar=no,scrollbars=no,location=no,status=no');
-                                      } else {
-                                        Linking.openURL(urlPreview);
-                                      }
-                                    }}>
-                                      <Ionicons name="play" size={14} color="#FFF" />
-                                      <Text style={styles.ytBtnText}>Prévia</Text>
-                                    </TouchableOpacity>
-                                  </>
-                                )}
-                              </View>
-                            </View>
-                          </View>
-                      )}
-                    />
-                  </View>
-                )}
-
-                {/* 3. VÍDEO E CONTROLES */}
-                {arquivoPro && (
-                  <View style={{ width: '100%', marginTop: 10, marginBottom: 10 }}>
-                    <View style={styles.playerTopBar}>
-                      <Text style={styles.infoTextPro} numberOfLines={1}>{arquivoPro.name}</Text>
-                      <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                        
-                        {/* BOTÃO DO MIXER (AO VIVO) */}
-                        <TouchableOpacity onPress={() => setModalMixer(true)} style={{marginRight: 15}}>
-                          <Ionicons name="options-outline" size={26} color="#4CAF50" />
-                        </TouchableOpacity>
-
-                        {Platform.OS === 'web' && (
-                          <TouchableOpacity 
-                            style={{backgroundColor: modoMonitorExterno ? '#E50914' : '#9C27B0', padding: 8, borderRadius: 5, justifyContent: 'center', alignItems: 'center'}} 
-                            onPress={alternarMonitorExterno}
-                          >
-                            <Ionicons name={modoMonitorExterno ? "desktop" : "desktop-outline"} size={26} color="#FFF" />
-                          </TouchableOpacity>
-                        )}
-
-                        {/* NOVO: BOTÃO ABRIR EM NOVA JANELA (EXCLUSIVO WEB) */}
-                        {Platform.OS === 'web' && (
-                          <TouchableOpacity onPress={() => { 
-                            const isInterno = arquivoPro ? !!arquivoPro.isInterno : false;
-                            // Pega o tempo correto do rastreador se for YouTube, ou do player se for MP4
-                            const tempoAtual = isInterno ? youtubeTimeRef.current : (player ? player.currentTime || 0 : 0); 
-                            
-                            const novaJanela = window.open('', '_blank', 'width=854,height=480,toolbar=no,menubar=no,scrollbars=no,location=no,status=no');
-                            
-                            if (novaJanela) {
-                              novaJanela.document.write(`
-                                <!DOCTYPE html>
-                                <html>
-                                  <head>
-                                    <title>Tela Secundária - GH Karaokê</title>
-                                    <style>
-                                      body { margin: 0; background: black; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-                                      video, iframe { width: 100%; height: 100%; object-fit: contain; border: none; }
-                                    </style>
-                                  </head>
-                                  <body>
-                                    ${isInterno 
-                                      ? `<iframe id="telaSecundariaIframe" src="https://www.youtube.com/embed/${arquivoPro.uri}?autoplay=1&mute=1&start=${Math.floor(tempoAtual)}" allow="autoplay; fullscreen"></iframe>`
-                                      : `<video id="telaSecundariaVideo" src="${arquivoPro.uri}" autoplay muted controls></video>`
-                                    }
-                                    <script>
-                                      const vid = document.getElementById('telaSecundariaVideo');
-                                      
-                                      if (vid) {
-                                        const iniciarTempo = () => {
-                                          vid.currentTime = ${tempoAtual};
-                                          vid.play().catch(e => console.log("Aguardando interação do usuário..."));
-                                        };
-
-                                        // Espera os dados carregarem para não quebrar o tempo
-                                        if (vid.readyState >= 1) {
-                                            iniciarTempo();
-                                        } else {
-                                            vid.addEventListener('loadedmetadata', iniciarTempo);
-                                        }
-
-                                        window.addEventListener('message', (event) => {
-                                          if (event.data && event.data.type === 'sync_tempo') {
-                                            if (!vid) return; 
-
-                                            const diff = Math.abs(vid.currentTime - event.data.tempo);
-                                            // Só força a sincronia se a diferença for maior que 1s e o vídeo estiver carregado
-                                            if (diff > 1.0 && vid.readyState >= 1) {
-                                              vid.currentTime = event.data.tempo;
-                                            }
-                                            
-                                            if (event.data.isPlaying && vid.paused) {
-                                              vid.play().catch(e => {});
-                                            } else if (!event.data.isPlaying && !vid.paused) {
-                                              vid.pause();
-                                            }
-                                          }
-                                        });
-                                      }
-                                    </script>
-                                  </body>
-                                </html>
-                              `);
-                              novaJanela.document.close();
-
-                              const syncInterval = setInterval(() => {
-                                if (novaJanela.closed) {
-                                  clearInterval(syncInterval); 
-                                } else {
-                                  let tempoSincronizado = isInterno ? youtubeTimeRef.current : (player ? player.currentTime || 0 : 0);
-                                  let isPlayingSync = isInterno ? true : (player ? player.playing : false);
-
-                                  novaJanela.postMessage({ 
-                                    type: 'sync_tempo', 
-                                    tempo: tempoSincronizado,
-                                    isPlaying: isPlayingSync
-                                  }, '*');
-                                }
-                              }, 500); 
-                            }
-                          }} style={{marginRight: 15}}>
-                            <Ionicons name="open-outline" size={24} color="#4CAF50" />
-                          </TouchableOpacity>
-                        )}
-
-                        {/\.(mp4|mkv|avi|mov|webm)$/i.test(arquivoPro.name) && (
-                          isExtracting ? <ActivityIndicator size="small" color="#9C27B0" style={{marginRight: 15}}/>
-                          : urlAudioExtraido ? <TouchableOpacity onPress={() => baixarECompartilhar(urlAudioExtraido, `Extraido_${arquivoPro.name.split('.')[0]}.wav`)}><Ionicons name="download" size={24} color="#4CAF50" style={{marginRight: 15}}/></TouchableOpacity>
-                          : <TouchableOpacity onPress={extrairAudioDoVideo} style={{marginRight: 15}}><Ionicons name="musical-notes" size={22} color="#9C27B0" /></TouchableOpacity>
-                        )}
-                        <TouchableOpacity onPress={() => { setReproducaoTemp(null); setCurrentIndex(-1); player.pause(); }}>
-                          <Ionicons name="close-circle" size={28} color="#E50914" />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-
-                    {/* ===== COLOQUE O EQUALIZADOR AQUI ===== */}
-                    {/* Mostra aviso se o EQ estiver ativo mas a música for interna */}
-                    {arquivoPro.isInterno && eqPlaybackAtivo && (
-                        <Text style={{color: '#FF9800', fontSize: 12, textAlign: 'center'}}>
-                          ⚠️ Equalizador não suportado no modo Servidor Interno.
-                        </Text>
-                    )}
-                    {!arquivoPro.isInterno && renderEqualizadorMusica()}
-
-                    {/* ===== BIFURCAÇÃO DO PLAYER ===== */}
-                    {arquivoPro.isInterno ? (
-                      // MODO INTERNO: TOCA DIRETO DO YOUTUBE
-                      Platform.OS === 'web' ? (
-                        // Se o monitor externo estiver ativo, não mostra o player principal, mostra um aviso
-                        modoMonitorExterno ? (
-                            <View style={{ width: '100%', aspectRatio: 16/9, borderRadius: 10, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
-                                <Ionicons name="desktop" size={40} color="#FFF" />
-                                <Text style={{color: '#FFF', marginTop: 10, fontWeight: 'bold'}}>Reproduzindo na tela secundária</Text>
-                            </View>
-                        ) : (
-                            <View style={{ width: '100%', aspectRatio: 16/9, borderRadius: 10, overflow: 'hidden', backgroundColor: '#000' }}>
-                                <iframe 
-                                    src={`https://www.youtube.com/embed/${arquivoPro.uri}?autoplay=1`} 
-                                    style={{ width: '100%', height: '100%', border: 'none' }}
-                                    allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-                                    allowFullScreen
-                                />
-                            </View>
-                        )
-                       ) : (
-                        
-                        // No Celular (Android/iOS)
-                        <View style={{ borderRadius: 10, overflow: 'hidden' }}>
-                          <YoutubeIframe
-                              ref={youtubePlayerRef}
-                              height={220}
-                              play={true}
-                              videoId={arquivoPro.uri}
-                              onChangeState={(state: string) => {
-                                if (state === 'ended') tocarProxima();
-                              }}
-                          />
-                        </View>
-                      )
-                    ) : (
-                      // ===== MODO EXTERNO (Vídeo mp4 do seu Backend) =====
-                      <View style={{ width: '100%', aspectRatio: 16/9, borderRadius: 10, overflow: 'hidden', backgroundColor: '#000' }}>
-                        <VideoView 
-                          ref={videoViewRef} 
-                          style={{ width: '100%', height: '100%' }} 
-                          player={player} 
-                          allowsPictureInPicture 
-                        />
-                      </View>
-                    )}
-
-                    <View style={styles.playlistControls}>
-                      <TouchableOpacity onPress={tocarAnterior} disabled={currentIndex <= 0}><Ionicons name="play-skip-back" size={36} color={currentIndex <= 0 ? "#555" : "#FFF"} /></TouchableOpacity>
-                      <Text style={styles.playlistCounterText}>{reproducaoTemp ? "Tocando Avulso" : (currentIndex >= 0 ? `${currentIndex + 1} de ${playlist.length}` : "Parado")}</Text>
-                      <TouchableOpacity onPress={tocarProxima} disabled={currentIndex === -1 || currentIndex === playlist.length - 1}><Ionicons name="play-skip-forward" size={36} color={currentIndex === -1 || currentIndex === playlist.length - 1 ? "#555" : "#FFF"} /></TouchableOpacity>
-                    </View>
-                  </View>
-                )}
-
-                {/* 4. LISTA DE REPRODUÇÃO (VISÍVEL APENAS NA WEB AQUI) */}
-                {Platform.OS === 'web' && isPlaylistVisible ? (
-                  <FilaReproducao 
-                    usarFlatList={true}
-                    mostrarBuscaFila={mostrarBuscaFila} setMostrarBuscaFila={setMostrarBuscaFila}
-                    buscaFila={buscaFila} setBuscaFila={setBuscaFila}
-                    playlist={playlist} playlistFiltrada={playlistFiltrada}
-                    currentIndex={currentIndex} setCurrentIndex={setCurrentIndex}
-                    reproducaoTemp={reproducaoTemp} setReproducaoTemp={setReproducaoTemp}
-                    setIsPlaylistVisible={setIsPlaylistVisible} carregarListasSalvas={carregarListasSalvas}
-                    setModalCarregarFila={setModalCarregarFila} setModalSalvarFila={setModalSalvarFila}
-                    confirmarLimparPlaylist={confirmarLimparPlaylist} inicializarBiblioteca={inicializarBiblioteca}
-                    setModalPastasPro={setModalPastasPro} adicionarPastaDoDispositivo={adicionarPastaDoDispositivo}
-                    selecionarMidiaPro={selecionarMidiaPro} moverItemFila={moverItemFila}
-                    setModalRenomearFila={setModalRenomearFila} removerDaPlaylist={removerDaPlaylist}
-                  />
-                ) : null}
-            </View>       
-              
-          )}
-
-          {/* ========================================================== */}
-          {/* MODO PAISAGEM (DEITADO): Metade Scroll (com .map), Metade Vídeo Fixo */}
-          {/* ========================================================== */}
-          {isLandscape && (
-             <View style={{ flex: 1, width: '100%', backgroundColor: '#1E1E1E', padding: 15, paddingTop: 5 }}>
-                
-                <View style={styles.searchContainer}>
-                  <View style={styles.inputWrapper}>
-                    <TextInput style={styles.searchInput} placeholder="Digite aqui..." placeholderTextColor="#A0A0A0" value={buscaYoutube} onChangeText={setBuscaYoutube} onSubmitEditing={fazerBuscaYoutube} />
-                    {buscaYoutube.length > 0 && <TouchableOpacity style={styles.clearInputIcon} onPress={limparBusca}><Ionicons name="close-circle" size={20} color="#A0A0A0" /></TouchableOpacity>}
-                  </View>
-                  
-                  <TouchableOpacity style={styles.searchButton} onPress={fazerBuscaYoutube}>
-                    <Ionicons name="search" size={20} color="#FFF" />
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity style={[styles.searchButton, { backgroundColor: isPlaylistVisible ? '#4CAF50' : '#555', marginLeft: 10 }]} onPress={() => setIsPlaylistVisible(!isPlaylistVisible)}>
-                    <Ionicons name="list" size={20} color="#FFF" />
-                  </TouchableOpacity>
-                </View>
-
-                {/* NOVO: SELETOR DE PLATAFORMA (YOUTUBE / SOUNDCLOUD) */}
-                <View style={{flexDirection: 'row', gap: 10, marginBottom: 15, paddingHorizontal: 5}}>
-                  <TouchableOpacity 
-                    style={{flex: 1, backgroundColor: fonteBusca === 'youtube' ? '#E50914' : '#333', paddingVertical: 8, borderRadius: 20, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', borderWidth: 1, borderColor: fonteBusca === 'youtube' ? '#FFF' : 'transparent'}} 
-                    onPress={() => { setFonteBusca('youtube'); setResultadosYoutube([]); }}>
-                    <Ionicons name="logo-youtube" size={16} color="#FFF" style={{marginRight: 5}}/>
-                    <Text style={{color: '#FFF', fontWeight: 'bold', fontSize: 13}}>YouTube</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity 
-                    style={{flex: 1, backgroundColor: fonteBusca === 'soundcloud' ? '#FF5500' : '#333', paddingVertical: 8, borderRadius: 20, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', borderWidth: 1, borderColor: fonteBusca === 'soundcloud' ? '#FFF' : 'transparent'}} 
-                    onPress={() => { setFonteBusca('soundcloud'); setResultadosYoutube([]); }}>
-                    <Ionicons name="cloud" size={16} color="#FFF" style={{marginRight: 5}}/>
-                    <Text style={{color: '#FFF', fontWeight: 'bold', fontSize: 13}}>SoundCloud</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {isBuscandoYt && <ActivityIndicator size="large" color="#E50914" style={{ marginTop: 20 }} />}
-
-                {/* 2. CONTEÚDO DIVIDIDO LADO A LADO */}
-                <View style={{ flex: 1, flexDirection: 'row', gap: 15 }}>
-                  
-                  {/* LADO ESQUERDO: Painel de Listas Roláveis (usando .map para não dar erro) */}
-                  <ScrollView style={{ flex: 1, minWidth: '45%' }} showsVerticalScrollIndicator={false}>
-                    
-                    {/* Resultados da Busca */}
-                    {resultadosYoutube.length > 0 && (
-                      <View style={{ width: '100%', borderBottomWidth: 1, borderBottomColor: '#333', paddingBottom: 10, marginBottom: 10 }}>
-                        <View style={styles.resultsHeader}>
-                          <Text style={styles.resultsHeaderText}>
-                            {resultadosYoutube.length} resultados {resultadosYoutube[0]?.isLocal ? '(Biblioteca Local)' : '(YouTube)'}
-                          </Text>
-                          <TouchableOpacity style={styles.closeResultsButton} onPress={limparBusca}><Ionicons name="close" size={16} color="#FFF" /><Text style={styles.closeResultsText}>Fechar Busca</Text></TouchableOpacity>
-                        </View>
-                        
-                        {resultadosYoutube.map((item) => (
-                          <View key={item.id} style={styles.ytItem}>
-                            <TouchableOpacity style={styles.ytThumbContainer} onPress={() => {
-                              if (item.isLocal) { 
-                                // CORREÇÃO: Toca a música local como avulsa (temporária) para não apagar a fila!
-                                setReproducaoTemp({ uri: item.id, name: `[Tocando Agora] ${item.titulo}` }); 
-                                setUrlAudioExtraido(null);
-                                setIsPlaylistVisible(false); 
-                              } 
-                              else { setModalAcaoYoutube({ id: item.id, titulo: item.titulo, source: item.source }); }
-                            }}>
-                              {item.thumb ? <Image source={{ uri: item.thumb }} style={styles.ytThumb} /> : <View style={[styles.ytThumb, {backgroundColor: item.source === 'soundcloud' ? '#FF5500' : '#333', justifyContent: 'center', alignItems: 'center'}]}><Ionicons name={item.source === 'soundcloud' ? "cloud" : "folder"} size={30} color="#FFF" /></View>}
-                              <View style={styles.playOverlay}><Ionicons name="play" size={36} color="#FFF" /></View>
-                            </TouchableOpacity>
-
-                            <View style={styles.ytInfo}>
-                              <Text style={styles.ytTitle} numberOfLines={2}>{item.titulo}</Text>
-                              <View style={styles.ytButtons}>
-                                {isBaixandoYt && idBaixando === item.id ? (
-                                  <View style={{flexDirection: 'row', alignItems: 'center', marginTop: 5}}><ActivityIndicator size="small" color="#E50914" style={{marginRight: 8}} /><Text style={{color: '#A0A0A0', fontSize: 12}}>Carregando...</Text></View>
-                                ) : item.isLocal ? (
-                                  <TouchableOpacity style={styles.ytBtnAudio} onPress={() => { adicionarNaPlaylist(item.id, item.titulo); alert("Adicionado à Lista de Reprodução!"); }}>
-                                    <Ionicons name="add" size={14} color="#FFF" /><Text style={styles.ytBtnText}>Adicionar à Fila</Text>
-                                  </TouchableOpacity>
-                                ) : (
-                                  <>
-                                    <TouchableOpacity style={[styles.ytBtnVideo, item.source === 'soundcloud' && {backgroundColor: '#FF5500'}]} onPress={() => setModalQualidadeYt({ id: item.id, titulo: item.titulo, tipo: 'video', acao: 'baixar', source: item.source })}><Ionicons name="download" size={14} color="#FFF" /><Text style={styles.ytBtnText}>Vídeo</Text></TouchableOpacity>
-                                    
-                                    <TouchableOpacity style={[styles.ytBtnAudio, item.source === 'soundcloud' && {backgroundColor: '#E64A19'}]} onPress={() => setModalQualidadeYt({ id: item.id, titulo: item.titulo, tipo: 'audio', acao: 'baixar', source: item.source })}><Ionicons name="download" size={14} color="#FFF" /><Text style={styles.ytBtnText}>Áudio</Text></TouchableOpacity>
-                                    
-                                    <TouchableOpacity style={[styles.ytBtnVideo, {backgroundColor: item.source === 'soundcloud' ? '#BF360C' : '#E50914'}]} onPress={() => {
-                                      const urlPreview = item.source === 'soundcloud' ? item.id : `https://www.youtube.com/watch?v=${item.id}`;
-                                      if (Platform.OS === 'web') {
-                                        window.open(urlPreview, 'PreviaPopUp', 'width=500,height=350,toolbar=no,menubar=no,scrollbars=no,location=no,status=no');
-                                      } else {
-                                        Linking.openURL(urlPreview);
-                                      }
-                                    }}>
-                                      <Ionicons name="play" size={14} color="#FFF" />
-                                      <Text style={styles.ytBtnText}>Prévia</Text>
-                                    </TouchableOpacity>
-                                  </>
-                                )}
-                              </View>
-                            </View>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-
-                    {/* Informações da Música Tocando */}
-                    {arquivoPro && (
-                      <View style={{ width: '100%', marginBottom: 10 }}>
-                        <View style={styles.playerTopBar}>
-                          <Text style={styles.infoTextPro} numberOfLines={1}>{arquivoPro.name}</Text>
-                          <View style={{flexDirection: 'row', alignItems: 'center'}}>
-
-                            {/* BOTÃO DO MIXER (AO VIVO) */}
-                            <TouchableOpacity onPress={() => setModalMixer(true)} style={{marginRight: 15}}>
-                              <Ionicons name="options-outline" size={26} color="#4CAF50" />
-                            </TouchableOpacity>
-
-                            {Platform.OS === 'web' && (
-                              <TouchableOpacity 
-                                style={{backgroundColor: modoMonitorExterno ? '#E50914' : '#9C27B0', padding: 8, borderRadius: 5, justifyContent: 'center', alignItems: 'center'}} 
-                                onPress={alternarMonitorExterno}
-                              >
-                                <Ionicons name={modoMonitorExterno ? "desktop" : "desktop-outline"} size={26} color="#FFF" />
-                              </TouchableOpacity>
-                            )}
-
-                            {/* NOVO: BOTÃO ABRIR EM NOVA JANELA (EXCLUSIVO WEB) */}
-                            {Platform.OS === 'web' && (
-                              <TouchableOpacity onPress={() => { 
-                                const isInterno = arquivoPro ? !!arquivoPro.isInterno : false;
-                                // Pega o tempo correto do rastreador se for YouTube, ou do player se for MP4
-                                const tempoAtual = isInterno ? youtubeTimeRef.current : (player ? player.currentTime || 0 : 0); 
-                                
-                                const novaJanela = window.open('', '_blank', 'width=854,height=480,toolbar=no,menubar=no,scrollbars=no,location=no,status=no');
-                                
-                                if (novaJanela) {
-                                  novaJanela.document.write(`
-                                    <!DOCTYPE html>
-                                    <html>
-                                      <head>
-                                        <title>Tela Secundária - GH Karaokê</title>
-                                        <style>
-                                          body { margin: 0; background: black; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-                                          video, iframe { width: 100%; height: 100%; object-fit: contain; border: none; }
-                                        </style>
-                                      </head>
-                                      <body>
-                                        ${isInterno 
-                                          ? `<iframe id="telaSecundariaIframe" src="https://www.youtube.com/embed/${arquivoPro.uri}?autoplay=1&mute=1&start=${Math.floor(tempoAtual)}" allow="autoplay; fullscreen"></iframe>`
-                                          : `<video id="telaSecundariaVideo" src="${arquivoPro.uri}" autoplay muted controls></video>`
-                                        }
-                                        <script>
-                                          const vid = document.getElementById('telaSecundariaVideo');
-                                          
-                                          if (vid) {
-                                            const iniciarTempo = () => {
-                                              vid.currentTime = ${tempoAtual};
-                                              vid.play().catch(e => console.log("Aguardando interação do usuário..."));
-                                            };
-
-                                            // Espera os dados carregarem para não quebrar o tempo
-                                            if (vid.readyState >= 1) {
-                                                iniciarTempo();
-                                            } else {
-                                                vid.addEventListener('loadedmetadata', iniciarTempo);
-                                            }
-
-                                            window.addEventListener('message', (event) => {
-                                              if (event.data && event.data.type === 'sync_tempo') {
-                                                if (!vid) return; 
-
-                                                const diff = Math.abs(vid.currentTime - event.data.tempo);
-                                                // Só força a sincronia se a diferença for maior que 1s e o vídeo estiver carregado
-                                                if (diff > 1.0 && vid.readyState >= 1) {
-                                                  vid.currentTime = event.data.tempo;
-                                                }
-                                                
-                                                if (event.data.isPlaying && vid.paused) {
-                                                  vid.play().catch(e => {});
-                                                } else if (!event.data.isPlaying && !vid.paused) {
-                                                  vid.pause();
-                                                }
-                                              }
-                                            });
-                                          }
-                                        </script>
-                                      </body>
-                                    </html>
-                                  `);
-                                  novaJanela.document.close();
-
-                                  const syncInterval = setInterval(() => {
-                                    if (novaJanela.closed) {
-                                      clearInterval(syncInterval); 
-                                    } else {
-                                      let tempoSincronizado = isInterno ? youtubeTimeRef.current : (player ? player.currentTime || 0 : 0);
-                                      let isPlayingSync = isInterno ? true : (player ? player.playing : false);
-
-                                      novaJanela.postMessage({ 
-                                        type: 'sync_tempo', 
-                                        tempo: tempoSincronizado,
-                                        isPlaying: isPlayingSync
-                                      }, '*');
-                                    }
-                                  }, 500); 
-                                }
-                              }} style={{marginRight: 15}}>
-                                <Ionicons name="open-outline" size={24} color="#4CAF50" />
-                              </TouchableOpacity>
-                            )}
-
-                            {/\.(mp4|mkv|avi|mov|webm)$/i.test(arquivoPro.name) && (
-                              isExtracting ? <ActivityIndicator size="small" color="#9C27B0" style={{marginRight: 15}}/>
-                              : urlAudioExtraido ? <TouchableOpacity onPress={() => baixarECompartilhar(urlAudioExtraido, `Extraido_${arquivoPro.name.split('.')[0]}.wav`)}><Ionicons name="download" size={24} color="#4CAF50" style={{marginRight: 15}}/></TouchableOpacity>
-                              : <TouchableOpacity onPress={extrairAudioDoVideo} style={{marginRight: 15}}><Ionicons name="musical-notes" size={22} color="#9C27B0" /></TouchableOpacity>
-                            )}
-                            <TouchableOpacity onPress={() => { setReproducaoTemp(null); setCurrentIndex(-1); player.pause(); }}>
-                              <Ionicons name="close-circle" size={28} color="#E50914" />
-                            </TouchableOpacity>
-                          </View>
-                        </View>
-
-                        {/* ===== COLOQUE O EQUALIZADOR AQUI ===== */}
-                        {renderEqualizadorMusica()}
-
-                        <View style={[styles.playlistControls, { marginTop: 10, marginBottom: 5 }]}>
-                          <TouchableOpacity onPress={tocarAnterior} disabled={currentIndex <= 0}><Ionicons name="play-skip-back" size={36} color={currentIndex <= 0 ? "#555" : "#FFF"} /></TouchableOpacity>
-                          <Text style={styles.playlistCounterText}>{reproducaoTemp ? "Tocando Avulso" : (currentIndex >= 0 ? `${currentIndex + 1} de ${playlist.length}` : "Parado")}</Text>
-                          <TouchableOpacity onPress={tocarProxima} disabled={currentIndex === -1 || currentIndex === playlist.length - 1}><Ionicons name="play-skip-forward" size={36} color={currentIndex === -1 || currentIndex === playlist.length - 1 ? "#555" : "#FFF"} /></TouchableOpacity>
-                        </View>
-                      </View>
-                    )}
-
-                    {/* Lista de Reprodução (VISÍVEL APENAS NA WEB AQUI) */}
-                    {Platform.OS === 'web' && isPlaylistVisible ? (
-                      <FilaReproducao 
-                        usarFlatList={false}
-                        mostrarBuscaFila={mostrarBuscaFila} setMostrarBuscaFila={setMostrarBuscaFila}
-                        buscaFila={buscaFila} setBuscaFila={setBuscaFila}
-                        playlist={playlist} playlistFiltrada={playlistFiltrada}
-                        currentIndex={currentIndex} setCurrentIndex={setCurrentIndex}
-                        reproducaoTemp={reproducaoTemp} setReproducaoTemp={setReproducaoTemp}
-                        setIsPlaylistVisible={setIsPlaylistVisible} carregarListasSalvas={carregarListasSalvas}
-                        setModalCarregarFila={setModalCarregarFila} setModalSalvarFila={setModalSalvarFila}
-                        confirmarLimparPlaylist={confirmarLimparPlaylist} inicializarBiblioteca={inicializarBiblioteca}
-                        setModalPastasPro={setModalPastasPro} adicionarPastaDoDispositivo={adicionarPastaDoDispositivo}
-                        selecionarMidiaPro={selecionarMidiaPro} moverItemFila={moverItemFila}
-                        setModalRenomearFila={setModalRenomearFila} removerDaPlaylist={removerDaPlaylist}
-                      />
-                    ) : null}
-                    
-                  </ScrollView>
-
-                  {/* LADO DIREITO: O Player de Vídeo FIXO */}
-                  {arquivoPro && (
-                    <View style={{ flex: isPlaylistVisible ? 1 : 1.2, justifyContent: 'center', paddingLeft: 10 }}>
-                    
-                      {/* ===== BIFURCAÇÃO DO PLAYER (MODO PAISAGEM) ===== */}
-                      {arquivoPro.isInterno ? (
-                        Platform.OS === 'web' ? (
-                        // Se o monitor externo estiver ativo, não mostra o player principal, mostra um aviso
-                        modoMonitorExterno ? (
-                            <View style={{ width: '100%', aspectRatio: 16/9, borderRadius: 10, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
-                                <Ionicons name="desktop" size={40} color="#FFF" />
-                                <Text style={{color: '#FFF', marginTop: 10, fontWeight: 'bold'}}>Reproduzindo na tela secundária</Text>
-                            </View>
-                        ) : (
-                            <View style={{ width: '100%', aspectRatio: 16/9, borderRadius: 10, overflow: 'hidden', backgroundColor: '#000' }}>
-                                <iframe 
-                                    src={`https://www.youtube.com/embed/${arquivoPro.uri}?autoplay=1`} 
-                                    style={{ width: '100%', height: '100%', border: 'none' }}
-                                    allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-                                    allowFullScreen
-                                />
-                            </View>
-                        )
-                       ) : (
-                          <View style={{ borderRadius: 10, overflow: 'hidden' }}>
-                            <YoutubeIframe
-                                ref={youtubePlayerRef}
-                                height={Dimensions.get('window').height * 0.6}
-                                play={true}
-                                videoId={arquivoPro.uri}
-                                onChangeState={(state: string) => {
-                                  if (state === 'ended') tocarProxima();
-                                }}
-                            />
-                          </View>
-                        )
-                      ) : (
-                        <View style={{ width: '100%', aspectRatio: 16/9, borderRadius: 10, overflow: 'hidden', backgroundColor: '#000' }}>
-                          <VideoView 
-                            ref={videoViewRef} 
-                            style={{ width: '100%', height: '100%' }} 
-                            player={player} 
-                            allowsPictureInPicture 
-                            allowsFullscreen
-                          />
-                        </View>
-                      )}
-                      
-                    </View>
-                  )}
-                  
-                </View>
-
-             </View>
-          )}
-        </View>
+      {telaAtiva === 'reprodutor' && (
+        <TelaReprodutorYoutube 
+            telaAtiva={telaAtiva}
+            isLandscape={isLandscape}
+            buscaYoutube={buscaYoutube}
+            setBuscaYoutube={setBuscaYoutube}
+            fazerBuscaYoutube={fazerBuscaYoutube}
+            limparBusca={limparBusca}
+            isPlaylistVisible={isPlaylistVisible}
+            setIsPlaylistVisible={setIsPlaylistVisible}
+            fonteBusca={fonteBusca}
+            setFonteBusca={setFonteBusca}
+            resultadosYoutube={resultadosYoutube}
+            isBuscandoYt={isBuscandoYt}
+            arquivoPro={arquivoPro}
+            player={player}
+            currentIndex={currentIndex}
+            playlist={playlist}
+            reproducaoTemp={reproducaoTemp}
+            setReproducaoTemp={setReproducaoTemp}
+            setUrlAudioExtraido={setUrlAudioExtraido}
+            setModalAcaoYoutube={setModalAcaoYoutube}
+            isBaixandoYt={isBaixandoYt}
+            idBaixando={idBaixando}
+            adicionarNaPlaylist={adicionarNaPlaylist}
+            setModalQualidadeYt={setModalQualidadeYt}
+            setModalMixer={setModalMixer}
+            modoMonitorExterno={modoMonitorExterno}
+            alternarMonitorExterno={alternarMonitorExterno}
+            youtubeTimeRef={youtubeTimeRef}
+            isExtracting={isExtracting}
+            urlAudioExtraido={urlAudioExtraido}
+            baixarECompartilhar={baixarECompartilhar}
+            extrairAudioDoVideo={extrairAudioDoVideo}
+            eqPlaybackAtivo={eqPlaybackAtivo}
+            tocarAnterior={tocarAnterior}
+            tocarProxima={tocarProxima}
+            mostrarBuscaFila={mostrarBuscaFila}
+            setMostrarBuscaFila={setMostrarBuscaFila}
+            buscaFila={buscaFila}
+            setBuscaFila={setBuscaFila}
+            playlistFiltrada={playlistFiltrada}
+            setCurrentIndex={setCurrentIndex}
+            carregarListasSalvas={carregarListasSalvas}
+            setModalCarregarFila={setModalCarregarFila}
+            setModalSalvarFila={setModalSalvarFila}
+            confirmarLimparPlaylist={confirmarLimparPlaylist}
+            inicializarBiblioteca={inicializarBiblioteca}
+            setModalPastasPro={setModalPastasPro}
+            adicionarPastaDoDispositivo={adicionarPastaDoDispositivo}
+            selecionarMidiaPro={selecionarMidiaPro}
+            moverItemFila={moverItemFila}
+            setModalRenomearFila={setModalRenomearFila}
+            removerDaPlaylist={removerDaPlaylist}
+            renderEqualizadorMusica={renderEqualizadorMusica}
+            youtubePlayerRef={youtubePlayerRef}
+            videoViewRef={videoViewRef}
+        />
+      )}
 
       {/* --- TELA: BIBLIOTECA LOCAL E LRC (UNIFICADAS NO COMPONENTE) --- */}
       <PainelBiblioteca
