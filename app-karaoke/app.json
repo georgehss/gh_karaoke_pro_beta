@@ -33,7 +33,7 @@
       "package": "com.georgehss19.appkaraoke"
     },
     "web": {
-      "output": "static",
+      "output": "single",
       "favicon": "./assets/images/favicon.png",
       "lang": "pt-BR",
       "display": "standalone",
@@ -42,7 +42,7 @@
       "backgroundColor": "#ffffff",
       "pwa": {
         "name": "GH Karaoke Pro",
-        "shortName": "Karaoke Pro",
+        "shortName": "GH Karaoke Pro",
         "description": "Seu aplicativo de karaokê pessoal.",
         "icons": [
           {
