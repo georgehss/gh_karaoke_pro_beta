@@ -2,7 +2,7 @@ import { StyleSheet, Platform } from 'react-native';
 
 export const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#1E1E1E' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15, backgroundColor: '#0A0A0A', borderBottomWidth: 1, borderBottomColor: '#222' }, 
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 5, backgroundColor: '#0A0A0A', borderBottomWidth: 1, borderBottomColor: '#222' }, 
   headerLeft: { flexDirection: 'row', alignItems: 'center' }, 
   title: { fontSize: 24, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.5 }, 
   proBadge: { backgroundColor: '#FFD700', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5, marginLeft: 8 },
@@ -139,8 +139,8 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    backgroundColor: '#0A0A0A', // Mesma cor do topo
-    paddingVertical: 10,
+    backgroundColor: '#0A0A0A',
+    paddingVertical: 5,
     paddingHorizontal: 15,
     borderTopWidth: 1,
     borderTopColor: '#222',
@@ -148,6 +148,7 @@ export const styles = StyleSheet.create({
   bottomTabItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
   }
 });
