@@ -1,14 +1,45 @@
 from flask.cli import load_dotenv
 import subprocess, os, yt_dlp, time, threading, requests, urllib.parse, re, replicate, soundfile as sf
+import sqlite3, jwt, datetime
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
+
+# Chave para criptografar os Tokens (Guarde isso seguro no seu .env no futuro)
+SECRET_KEY = os.getenv("SECRET_KEY")
+
+# Função para criar o banco de dados na primeira vez que rodar
+def init_db():
+    conn = sqlite3.connect('banco_karaoke.db')
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS usuarios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            is_pro BOOLEAN NOT NULL CHECK (is_pro IN (0, 1))
+        )
+    ''')
+    
+    # Criar um usuário administrador padrão ("georgehss", senha "19191919") se ele não existir
+    c.execute("SELECT * FROM usuarios WHERE username='georgehss'")
+    if not c.fetchone():
+        senha_criptografada = generate_password_hash('19191919')
+        c.execute("INSERT INTO usuarios (username, password, is_pro) VALUES (?, ?, ?)", ('georgehss', senha_criptografada, 1))
+        print("✅ Usuário administrador 'georgehss' criado com sucesso!")
+        
+    conn.commit()
+    conn.close()
+
+# Executa a criação do banco ao ligar o servidor
+init_db()
 
 FADR_API_KEY = os.environ["FADR_API_KEY"]
 REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN")
@@ -25,6 +56,67 @@ def salvar_com_soundfile(wav, path, *args, **kwargs):
     audio_np = wav.cpu().numpy().T
     sf.write(str(path), audio_np, samplerate)
 
+# ==========================================
+# ROTAS DE AUTENTICAÇÃO (LOGIN E REGISTRO)
+# ==========================================
+@app.route('/api/register', methods=['POST'])
+def registrar_usuario():
+    dados = request.json
+    username = dados.get('username')
+    password = dados.get('password')
+    
+    # Por padrão, vamos colocar os novos usuários como PRO
+    is_pro = dados.get('is_pro', 1) 
+
+    if not username or not password:
+        return jsonify({'erro': 'Usuário e senha são obrigatórios!'}), 400
+
+    # Nunca salvamos a senha pura no banco, criamos um HASH (embaralhado)
+    senha_hash = generate_password_hash(password)
+
+    try:
+        conn = sqlite3.connect('banco_karaoke.db')
+        c = conn.cursor()
+        c.execute("INSERT INTO usuarios (username, password, is_pro) VALUES (?, ?, ?)", (username, senha_hash, is_pro))
+        conn.commit()
+        conn.close()
+        return jsonify({'sucesso': True, 'mensagem': f'Usuário {username} criado com sucesso!'})
+    except sqlite3.IntegrityError:
+        return jsonify({'erro': 'Este nome de usuário já existe.'}), 409
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    dados = request.json
+    username = dados.get('username')
+    password = dados.get('password')
+
+    conn = sqlite3.connect('banco_karaoke.db')
+    c = conn.cursor()
+    c.execute("SELECT id, username, password, is_pro FROM usuarios WHERE username=?", (username,))
+    user = c.fetchone()
+    conn.close()
+
+    # user[2] é a senha embaralhada salva no banco. O Werkzeug verifica se a senha digitada bate com ela.
+    if user and check_password_hash(user[2], password):
+        # Senha correta! Gerar o Crachá (Token JWT) válido por 7 dias
+        token = jwt.encode({
+            'id': user[0],
+            'username': user[1],
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+        }, SECRET_KEY, algorithm="HS256")
+
+        return jsonify({
+            'sucesso': True,
+            'token': token,
+            'user': {
+                'id': str(user[0]),
+                'username': user[1],
+                'isPro': bool(user[3])
+            }
+        })
+
+    # Se chegar aqui, a senha ou usuário estão errados
+    return jsonify({'erro': 'Usuário ou senha inválidos!'}), 401
 
 @app.route('/separar_replicate', methods=['POST'])
 def separar_replicate():
