@@ -1131,6 +1131,7 @@ export default function IndexScreen() {
             isLandscape={isLandscape}
             buscaYoutube={buscaYoutube}
             setBuscaYoutube={setBuscaYoutube}
+            setResultadosYoutube={setResultadosYoutube}
             fazerBuscaYoutube={fazerBuscaYoutube}
             limparBusca={limparBusca}
             isPlaylistVisible={isPlaylistVisible}

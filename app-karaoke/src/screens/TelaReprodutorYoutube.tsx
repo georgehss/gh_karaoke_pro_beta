@@ -57,14 +57,14 @@ export default function TelaReprodutorYoutube(props: any) {
               <View style={{flexDirection: 'row', gap: 10, marginBottom: 15, paddingHorizontal: 5}}>
                 <TouchableOpacity 
                   style={{flex: 1, backgroundColor: fonteBusca === 'youtube' ? '#E50914' : '#333', paddingVertical: 8, borderRadius: 20, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', borderWidth: 1, borderColor: fonteBusca === 'youtube' ? '#FFF' : 'transparent'}} 
-                  onPress={() => { setFonteBusca('youtube'); setResultadosYoutube([]); }}>
+                  onPress={() => { setFonteBusca('youtube'); setResultadosYoutube?.([]); }}>
                   <Ionicons name="logo-youtube" size={16} color="#FFF" style={{marginRight: 5}}/>
                   <Text style={{color: '#FFF', fontWeight: 'bold', fontSize: 13}}>YouTube</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity 
                   style={{flex: 1, backgroundColor: fonteBusca === 'soundcloud' ? '#FF5500' : '#333', paddingVertical: 8, borderRadius: 20, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', borderWidth: 1, borderColor: fonteBusca === 'soundcloud' ? '#FFF' : 'transparent'}} 
-                  onPress={() => { setFonteBusca('soundcloud'); setResultadosYoutube([]); }}>
+                  onPress={() => { setFonteBusca('soundcloud'); setResultadosYoutube?.([]); }}>
                   <Ionicons name="cloud" size={16} color="#FFF" style={{marginRight: 5}}/>
                   <Text style={{color: '#FFF', fontWeight: 'bold', fontSize: 13}}>SoundCloud</Text>
                 </TouchableOpacity>
