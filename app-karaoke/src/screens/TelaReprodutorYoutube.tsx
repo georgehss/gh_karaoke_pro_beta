@@ -26,7 +26,6 @@ export default function TelaReprodutorYoutube(props: any) {
   } = props;
 
   return (
-    // COLE AQUI O BLOCO RECORTADO DO INDEX.TSX
     <View style={[
       { flex: 1, width: '100%' },
       telaAtiva !== 'reprodutor' && { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, zIndex: -10, pointerEvents: 'none' }
@@ -53,7 +52,7 @@ export default function TelaReprodutorYoutube(props: any) {
                 </TouchableOpacity>
               </View>
 
-              {/* NOVO: SELETOR DE PLATAFORMA (YOUTUBE / SOUNDCLOUD) */}
+              {/* SELETOR DE PLATAFORMA (YOUTUBE / SOUNDCLOUD) */}
               <View style={{flexDirection: 'row', gap: 10, marginBottom: 15, paddingHorizontal: 5}}>
                 <TouchableOpacity 
                   style={{flex: 1, backgroundColor: fonteBusca === 'youtube' ? '#E50914' : '#333', paddingVertical: 8, borderRadius: 20, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', borderWidth: 1, borderColor: fonteBusca === 'youtube' ? '#FFF' : 'transparent'}} 
@@ -90,7 +89,6 @@ export default function TelaReprodutorYoutube(props: any) {
                       <View style={styles.ytItem}>
                           <TouchableOpacity style={styles.ytThumbContainer} onPress={() => {
                             if (item.isLocal) { 
-                              // CORREÇÃO: Toca a música local como avulsa (temporária) para não apagar a fila!
                               setReproducaoTemp({ uri: item.id, name: `[Tocando Agora] ${item.titulo}` }); 
                               setUrlAudioExtraido(null);
                               setIsPlaylistVisible(false); 
@@ -116,7 +114,6 @@ export default function TelaReprodutorYoutube(props: any) {
                                   
                                   <TouchableOpacity style={[styles.ytBtnAudio, item.source === 'soundcloud' && {backgroundColor: '#E64A19'}]} onPress={() => setModalQualidadeYt({ id: item.id, titulo: item.titulo, tipo: 'audio', acao: 'baixar', source: item.source })}><Ionicons name="download" size={14} color="#FFF" /><Text style={styles.ytBtnText}>Áudio</Text></TouchableOpacity>
                                   
-                                  {/* NOVO BOTÃO DE PRÉVIA INTELIGENTE */}
                                   <TouchableOpacity style={[styles.ytBtnVideo, {backgroundColor: item.source === 'soundcloud' ? '#BF360C' : '#E50914'}]} onPress={() => {
                                     const urlPreview = item.source === 'soundcloud' ? item.id : `https://www.youtube.com/watch?v=${item.id}`;
                                     if (Platform.OS === 'web') {
@@ -145,7 +142,6 @@ export default function TelaReprodutorYoutube(props: any) {
                     <Text style={styles.infoTextPro} numberOfLines={1}>{arquivoPro.name}</Text>
                     <View style={{flexDirection: 'row', alignItems: 'center'}}>
                       
-                      {/* BOTÃO DO MIXER (AO VIVO) */}
                       <TouchableOpacity onPress={() => setModalMixer(true)} style={{marginRight: 15}}>
                         <Ionicons name="options-outline" size={26} color="#4CAF50" />
                       </TouchableOpacity>
@@ -159,11 +155,9 @@ export default function TelaReprodutorYoutube(props: any) {
                         </TouchableOpacity>
                       )}
 
-                      {/* NOVO: BOTÃO ABRIR EM NOVA JANELA (EXCLUSIVO WEB) */}
                       {Platform.OS === 'web' && (
                         <TouchableOpacity onPress={() => { 
                           const isInterno = arquivoPro ? !!arquivoPro.isInterno : false;
-                          // Pega o tempo correto do rastreador se for YouTube, ou do player se for MP4
                           const tempoAtual = isInterno ? youtubeTimeRef.current : (player ? player.currentTime || 0 : 0); 
                           
                           const novaJanela = window.open('', '_blank', 'width=854,height=480,toolbar=no,menubar=no,scrollbars=no,location=no,status=no');
@@ -193,7 +187,6 @@ export default function TelaReprodutorYoutube(props: any) {
                                         vid.play().catch(e => console.log("Aguardando interação do usuário..."));
                                       };
 
-                                      // Espera os dados carregarem para não quebrar o tempo
                                       if (vid.readyState >= 1) {
                                           iniciarTempo();
                                       } else {
@@ -205,7 +198,6 @@ export default function TelaReprodutorYoutube(props: any) {
                                           if (!vid) return; 
 
                                           const diff = Math.abs(vid.currentTime - event.data.tempo);
-                                          // Só força a sincronia se a diferença for maior que 1s e o vídeo estiver carregado
                                           if (diff > 1.0 && vid.readyState >= 1) {
                                             vid.currentTime = event.data.tempo;
                                           }
@@ -255,8 +247,6 @@ export default function TelaReprodutorYoutube(props: any) {
                     </View>
                   </View>
 
-                  {/* ===== COLOQUE O EQUALIZADOR AQUI ===== */}
-                  {/* Mostra aviso se o EQ estiver ativo mas a música for interna */}
                   {arquivoPro.isInterno && eqPlaybackAtivo && (
                       <Text style={{color: '#FF9800', fontSize: 12, textAlign: 'center'}}>
                         ⚠️ Equalizador não suportado no modo Servidor Interno.
@@ -264,11 +254,8 @@ export default function TelaReprodutorYoutube(props: any) {
                   )}
                   {!arquivoPro.isInterno && renderEqualizadorMusica()}
 
-                  {/* ===== BIFURCAÇÃO DO PLAYER ===== */}
                   {arquivoPro.isInterno ? (
-                    // MODO INTERNO: TOCA DIRETO DO YOUTUBE
                     Platform.OS === 'web' ? (
-                      // Se o monitor externo estiver ativo, não mostra o player principal, mostra um aviso
                       modoMonitorExterno ? (
                           <View style={{ width: '100%', aspectRatio: 16/9, borderRadius: 10, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
                               <Ionicons name="desktop" size={40} color="#FFF" />
@@ -285,8 +272,6 @@ export default function TelaReprodutorYoutube(props: any) {
                           </View>
                       )
                      ) : (
-                      
-                      // No Celular (Android/iOS)
                       <View style={{ borderRadius: 10, overflow: 'hidden' }}>
                         <YoutubeIframe
                             ref={youtubePlayerRef}
@@ -300,7 +285,6 @@ export default function TelaReprodutorYoutube(props: any) {
                       </View>
                     )
                   ) : (
-                    // ===== MODO EXTERNO (Vídeo mp4 do seu Backend) =====
                     <View style={{ width: '100%', aspectRatio: 16/9, borderRadius: 10, overflow: 'hidden', backgroundColor: '#000' }}>
                       <VideoView 
                         ref={videoViewRef} 
@@ -341,7 +325,7 @@ export default function TelaReprodutorYoutube(props: any) {
         )}
 
         {/* ========================================================== */}
-        {/* MODO PAISAGEM (DEITADO): Metade Scroll (com .map), Metade Vídeo Fixo */}
+        {/* MODO PAISAGEM (DEITADO) - OPÇÃO A APLICADA AQUI! */}
         {/* ========================================================== */}
         {isLandscape && (
            <View style={{ flex: 1, width: '100%', backgroundColor: '#1E1E1E', padding: 15, paddingTop: 5 }}>
@@ -361,7 +345,6 @@ export default function TelaReprodutorYoutube(props: any) {
                 </TouchableOpacity>
               </View>
 
-              {/* NOVO: SELETOR DE PLATAFORMA (YOUTUBE / SOUNDCLOUD) */}
               <View style={{flexDirection: 'row', gap: 10, marginBottom: 15, paddingHorizontal: 5}}>
                 <TouchableOpacity 
                   style={{flex: 1, backgroundColor: fonteBusca === 'youtube' ? '#E50914' : '#333', paddingVertical: 8, borderRadius: 20, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', borderWidth: 1, borderColor: fonteBusca === 'youtube' ? '#FFF' : 'transparent'}} 
@@ -380,15 +363,15 @@ export default function TelaReprodutorYoutube(props: any) {
 
               {isBuscandoYt && <ActivityIndicator size="large" color="#E50914" style={{ marginTop: 20 }} />}
 
-              {/* 2. CONTEÚDO DIVIDIDO LADO A LADO */}
+              {/* CONTEÚDO DIVIDIDO LADO A LADO */}
               <View style={{ flex: 1, flexDirection: 'row', gap: 15 }}>
                 
-                {/* LADO ESQUERDO: Painel de Listas Roláveis (usando .map para não dar erro) */}
-                <ScrollView style={{ flex: 1, minWidth: '45%' }} showsVerticalScrollIndicator={false}>
+                {/* === OPÇÃO A: REMOVEMOS O SCROLLVIEW E COLOCAMOS UMA VIEW === */}
+                <View style={{ flex: 1, minWidth: '45%' }}>
                   
-                  {/* Resultados da Busca */}
+                  {/* Resultados da Busca (AGORA EM FLATLIST E COM FLEX: 1) */}
                   {resultadosYoutube.length > 0 && (
-                    <View style={{ width: '100%', borderBottomWidth: 1, borderBottomColor: '#333', paddingBottom: 10, marginBottom: 10 }}>
+                    <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#333', paddingBottom: 10, marginBottom: 10 }}>
                       <View style={styles.resultsHeader}>
                         <Text style={styles.resultsHeaderText}>
                           {resultadosYoutube.length} resultados {resultadosYoutube[0]?.isLocal ? '(Biblioteca Local)' : '(YouTube)'}
@@ -396,64 +379,66 @@ export default function TelaReprodutorYoutube(props: any) {
                         <TouchableOpacity style={styles.closeResultsButton} onPress={limparBusca}><Ionicons name="close" size={16} color="#FFF" /><Text style={styles.closeResultsText}>Fechar Busca</Text></TouchableOpacity>
                       </View>
                       
-                      {resultadosYoutube.map((item: any) => (
-                        <View key={item.id} style={styles.ytItem}>
-                          <TouchableOpacity style={styles.ytThumbContainer} onPress={() => {
-                            if (item.isLocal) { 
-                              // CORREÇÃO: Toca a música local como avulsa (temporária) para não apagar a fila!
-                              setReproducaoTemp({ uri: item.id, name: `[Tocando Agora] ${item.titulo}` }); 
-                              setUrlAudioExtraido(null);
-                              setIsPlaylistVisible(false); 
-                            } 
-                            else { setModalAcaoYoutube({ id: item.id, titulo: item.titulo, source: item.source }); }
-                          }}>
-                            {item.thumb ? <Image source={{ uri: item.thumb }} style={styles.ytThumb} /> : <View style={[styles.ytThumb, {backgroundColor: item.source === 'soundcloud' ? '#FF5500' : '#333', justifyContent: 'center', alignItems: 'center'}]}><Ionicons name={item.source === 'soundcloud' ? "cloud" : "folder"} size={30} color="#FFF" /></View>}
-                            <View style={styles.playOverlay}><Ionicons name="play" size={36} color="#FFF" /></View>
-                          </TouchableOpacity>
+                      <FlatList 
+                        data={resultadosYoutube}
+                        keyExtractor={(item: any) => item.id}
+                        showsVerticalScrollIndicator={false}
+                        style={{ width: '100%' }}
+                        renderItem={({ item }: any) => (
+                          <View style={styles.ytItem}>
+                            <TouchableOpacity style={styles.ytThumbContainer} onPress={() => {
+                              if (item.isLocal) { 
+                                setReproducaoTemp({ uri: item.id, name: `[Tocando Agora] ${item.titulo}` }); 
+                                setUrlAudioExtraido(null);
+                                setIsPlaylistVisible(false); 
+                              } 
+                              else { setModalAcaoYoutube({ id: item.id, titulo: item.titulo, source: item.source }); }
+                            }}>
+                              {item.thumb ? <Image source={{ uri: item.thumb }} style={styles.ytThumb} /> : <View style={[styles.ytThumb, {backgroundColor: item.source === 'soundcloud' ? '#FF5500' : '#333', justifyContent: 'center', alignItems: 'center'}]}><Ionicons name={item.source === 'soundcloud' ? "cloud" : "folder"} size={30} color="#FFF" /></View>}
+                              <View style={styles.playOverlay}><Ionicons name="play" size={36} color="#FFF" /></View>
+                            </TouchableOpacity>
 
-                          <View style={styles.ytInfo}>
-                            <Text style={styles.ytTitle} numberOfLines={2}>{item.titulo}</Text>
-                            <View style={styles.ytButtons}>
-                              {isBaixandoYt && idBaixando === item.id ? (
-                                <View style={{flexDirection: 'row', alignItems: 'center', marginTop: 5}}><ActivityIndicator size="small" color="#E50914" style={{marginRight: 8}} /><Text style={{color: '#A0A0A0', fontSize: 12}}>Carregando...</Text></View>
-                              ) : item.isLocal ? (
-                                <TouchableOpacity style={styles.ytBtnAudio} onPress={() => { adicionarNaPlaylist(item.id, item.titulo); alert("Adicionado à Lista de Reprodução!"); }}>
-                                  <Ionicons name="add" size={14} color="#FFF" /><Text style={styles.ytBtnText}>Adicionar à Fila</Text>
-                                </TouchableOpacity>
-                              ) : (
-                                <>
-                                  <TouchableOpacity style={[styles.ytBtnVideo, item.source === 'soundcloud' && {backgroundColor: '#FF5500'}]} onPress={() => setModalQualidadeYt({ id: item.id, titulo: item.titulo, tipo: 'video', acao: 'baixar', source: item.source })}><Ionicons name="download" size={14} color="#FFF" /><Text style={styles.ytBtnText}>Vídeo</Text></TouchableOpacity>
-                                  
-                                  <TouchableOpacity style={[styles.ytBtnAudio, item.source === 'soundcloud' && {backgroundColor: '#E64A19'}]} onPress={() => setModalQualidadeYt({ id: item.id, titulo: item.titulo, tipo: 'audio', acao: 'baixar', source: item.source })}><Ionicons name="download" size={14} color="#FFF" /><Text style={styles.ytBtnText}>Áudio</Text></TouchableOpacity>
-                                  
-                                  <TouchableOpacity style={[styles.ytBtnVideo, {backgroundColor: item.source === 'soundcloud' ? '#BF360C' : '#E50914'}]} onPress={() => {
-                                    const urlPreview = item.source === 'soundcloud' ? item.id : `https://www.youtube.com/watch?v=${item.id}`;
-                                    if (Platform.OS === 'web') {
-                                      window.open(urlPreview, 'PreviaPopUp', 'width=500,height=350,toolbar=no,menubar=no,scrollbars=no,location=no,status=no');
-                                    } else {
-                                      Linking.openURL(urlPreview);
-                                    }
-                                  }}>
-                                    <Ionicons name="play" size={14} color="#FFF" />
-                                    <Text style={styles.ytBtnText}>Prévia</Text>
+                            <View style={styles.ytInfo}>
+                              <Text style={styles.ytTitle} numberOfLines={2}>{item.titulo}</Text>
+                              <View style={styles.ytButtons}>
+                                {isBaixandoYt && idBaixando === item.id ? (
+                                  <View style={{flexDirection: 'row', alignItems: 'center', marginTop: 5}}><ActivityIndicator size="small" color="#E50914" style={{marginRight: 8}} /><Text style={{color: '#A0A0A0', fontSize: 12}}>Carregando...</Text></View>
+                                ) : item.isLocal ? (
+                                  <TouchableOpacity style={styles.ytBtnAudio} onPress={() => { adicionarNaPlaylist(item.id, item.titulo); alert("Adicionado à Lista de Reprodução!"); }}>
+                                    <Ionicons name="add" size={14} color="#FFF" /><Text style={styles.ytBtnText}>Adicionar à Fila</Text>
                                   </TouchableOpacity>
-                                </>
-                              )}
+                                ) : (
+                                  <>
+                                    <TouchableOpacity style={[styles.ytBtnVideo, item.source === 'soundcloud' && {backgroundColor: '#FF5500'}]} onPress={() => setModalQualidadeYt({ id: item.id, titulo: item.titulo, tipo: 'video', acao: 'baixar', source: item.source })}><Ionicons name="download" size={14} color="#FFF" /><Text style={styles.ytBtnText}>Vídeo</Text></TouchableOpacity>
+                                    <TouchableOpacity style={[styles.ytBtnAudio, item.source === 'soundcloud' && {backgroundColor: '#E64A19'}]} onPress={() => setModalQualidadeYt({ id: item.id, titulo: item.titulo, tipo: 'audio', acao: 'baixar', source: item.source })}><Ionicons name="download" size={14} color="#FFF" /><Text style={styles.ytBtnText}>Áudio</Text></TouchableOpacity>
+                                    <TouchableOpacity style={[styles.ytBtnVideo, {backgroundColor: item.source === 'soundcloud' ? '#BF360C' : '#E50914'}]} onPress={() => {
+                                      const urlPreview = item.source === 'soundcloud' ? item.id : `https://www.youtube.com/watch?v=${item.id}`;
+                                      if (Platform.OS === 'web') {
+                                        window.open(urlPreview, 'PreviaPopUp', 'width=500,height=350,toolbar=no,menubar=no,scrollbars=no,location=no,status=no');
+                                      } else {
+                                        Linking.openURL(urlPreview);
+                                      }
+                                    }}>
+                                      <Ionicons name="play" size={14} color="#FFF" />
+                                      <Text style={styles.ytBtnText}>Prévia</Text>
+                                    </TouchableOpacity>
+                                  </>
+                                )}
+                              </View>
                             </View>
                           </View>
-                        </View>
-                      ))}
+                        )}
+                      />
                     </View>
                   )}
 
-                  {/* Informações da Música Tocando */}
+                  {/* Informações da Música Tocando (Fica Fixo no meio das listas) */}
                   {arquivoPro && (
                     <View style={{ width: '100%', marginBottom: 10 }}>
                       <View style={styles.playerTopBar}>
                         <Text style={styles.infoTextPro} numberOfLines={1}>{arquivoPro.name}</Text>
                         <View style={{flexDirection: 'row', alignItems: 'center'}}>
 
-                          {/* BOTÃO DO MIXER (AO VIVO) */}
                           <TouchableOpacity onPress={() => setModalMixer(true)} style={{marginRight: 15}}>
                             <Ionicons name="options-outline" size={26} color="#4CAF50" />
                           </TouchableOpacity>
@@ -467,11 +452,9 @@ export default function TelaReprodutorYoutube(props: any) {
                             </TouchableOpacity>
                           )}
 
-                          {/* NOVO: BOTÃO ABRIR EM NOVA JANELA (EXCLUSIVO WEB) */}
                           {Platform.OS === 'web' && (
                             <TouchableOpacity onPress={() => { 
                               const isInterno = arquivoPro ? !!arquivoPro.isInterno : false;
-                              // Pega o tempo correto do rastreador se for YouTube, ou do player se for MP4
                               const tempoAtual = isInterno ? youtubeTimeRef.current : (player ? player.currentTime || 0 : 0); 
                               
                               const novaJanela = window.open('', '_blank', 'width=854,height=480,toolbar=no,menubar=no,scrollbars=no,location=no,status=no');
@@ -501,7 +484,6 @@ export default function TelaReprodutorYoutube(props: any) {
                                             vid.play().catch(e => console.log("Aguardando interação do usuário..."));
                                           };
 
-                                          // Espera os dados carregarem para não quebrar o tempo
                                           if (vid.readyState >= 1) {
                                               iniciarTempo();
                                           } else {
@@ -513,7 +495,6 @@ export default function TelaReprodutorYoutube(props: any) {
                                               if (!vid) return; 
 
                                               const diff = Math.abs(vid.currentTime - event.data.tempo);
-                                              // Só força a sincronia se a diferença for maior que 1s e o vídeo estiver carregado
                                               if (diff > 1.0 && vid.readyState >= 1) {
                                                 vid.currentTime = event.data.tempo;
                                               }
@@ -563,7 +544,6 @@ export default function TelaReprodutorYoutube(props: any) {
                         </View>
                       </View>
 
-                      {/* ===== COLOQUE O EQUALIZADOR AQUI ===== */}
                       {renderEqualizadorMusica()}
 
                       <View style={[styles.playlistControls, { marginTop: 10, marginBottom: 5 }]}>
@@ -574,34 +554,34 @@ export default function TelaReprodutorYoutube(props: any) {
                     </View>
                   )}
 
-                  {/* Lista de Reprodução (VISÍVEL APENAS NA WEB AQUI) */}
+                  {/* Lista de Reprodução - OPÇÃO A: USAR FLATLIST=TRUE AQUI! */}
                   {Platform.OS === 'web' && isPlaylistVisible ? (
-                    <FilaReproducao 
-                      usarFlatList={false}
-                      mostrarBuscaFila={mostrarBuscaFila} setMostrarBuscaFila={setMostrarBuscaFila}
-                      buscaFila={buscaFila} setBuscaFila={setBuscaFila}
-                      playlist={playlist} playlistFiltrada={playlistFiltrada}
-                      currentIndex={currentIndex} setCurrentIndex={setCurrentIndex}
-                      reproducaoTemp={reproducaoTemp} setReproducaoTemp={setReproducaoTemp}
-                      setIsPlaylistVisible={setIsPlaylistVisible} carregarListasSalvas={carregarListasSalvas}
-                      setModalCarregarFila={setModalCarregarFila} setModalSalvarFila={setModalSalvarFila}
-                      confirmarLimparPlaylist={confirmarLimparPlaylist} inicializarBiblioteca={inicializarBiblioteca}
-                      setModalPastasPro={setModalPastasPro} adicionarPastaDoDispositivo={adicionarPastaDoDispositivo}
-                      selecionarMidiaPro={selecionarMidiaPro} moverItemFila={moverItemFila}
-                      setModalRenomearFila={setModalRenomearFila} removerDaPlaylist={removerDaPlaylist}
-                    />
+                    <View style={{ flex: 1 }}>
+                      <FilaReproducao 
+                        usarFlatList={true}
+                        mostrarBuscaFila={mostrarBuscaFila} setMostrarBuscaFila={setMostrarBuscaFila}
+                        buscaFila={buscaFila} setBuscaFila={setBuscaFila}
+                        playlist={playlist} playlistFiltrada={playlistFiltrada}
+                        currentIndex={currentIndex} setCurrentIndex={setCurrentIndex}
+                        reproducaoTemp={reproducaoTemp} setReproducaoTemp={setReproducaoTemp}
+                        setIsPlaylistVisible={setIsPlaylistVisible} carregarListasSalvas={carregarListasSalvas}
+                        setModalCarregarFila={setModalCarregarFila} setModalSalvarFila={setModalSalvarFila}
+                        confirmarLimparPlaylist={confirmarLimparPlaylist} inicializarBiblioteca={inicializarBiblioteca}
+                        setModalPastasPro={setModalPastasPro} adicionarPastaDoDispositivo={adicionarPastaDoDispositivo}
+                        selecionarMidiaPro={selecionarMidiaPro} moverItemFila={moverItemFila}
+                        setModalRenomearFila={setModalRenomearFila} removerDaPlaylist={removerDaPlaylist}
+                      />
+                    </View>
                   ) : null}
                   
-                </ScrollView>
+                </View>
 
                 {/* LADO DIREITO: O Player de Vídeo FIXO */}
                 {arquivoPro && (
                   <View style={{ flex: isPlaylistVisible ? 1 : 1.2, justifyContent: 'center', paddingLeft: 10 }}>
                   
-                    {/* ===== BIFURCAÇÃO DO PLAYER (MODO PAISAGEM) ===== */}
                     {arquivoPro.isInterno ? (
                       Platform.OS === 'web' ? (
-                      // Se o monitor externo estiver ativo, não mostra o player principal, mostra um aviso
                       modoMonitorExterno ? (
                           <View style={{ width: '100%', aspectRatio: 16/9, borderRadius: 10, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
                               <Ionicons name="desktop" size={40} color="#FFF" />

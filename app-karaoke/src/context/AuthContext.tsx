@@ -70,7 +70,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       // ⚠️ ATENÇÃO: Troque pelo IP da sua máquina se estiver rodando no celular via Expo Go!
       // Exemplo: 'http://192.168.1.15:5000/api/login'
-      const apiUrl = 'http://127.0.0.1:5000/api/login'; 
+      const apiUrl = 'http://192.168.1.5:5000/api/login'; 
 
       const response = await fetch(apiUrl, {
         method: 'POST',
