@@ -462,9 +462,22 @@ if __name__ == '__main__':
     threading.Thread(target=vigia_do_navegador, daemon=True).start()
     threading.Thread(target=faxineiro_de_arquivos, daemon=True).start()
     
-    # Abre automaticamente a interface web local do Karaokê no navegador padrão
-    url_local = f"[http://127.0.0.1](http://127.0.0.1):{porta}"
-    threading.Timer(1.5, lambda: webbrowser.open(url_local)).start()
+    # --- NOVA LÓGICA BLINDADA PARA ABRIR O NAVEGADOR PADRÃO ---
+    url_local = f"http://127.0.0.1:{porta}"
+    
+    def abrir_navegador_nativo(url):
+        try:
+            # Força o Windows a usar o aplicativo padrão real para links de internet
+            if sys.platform == 'win32':
+                os.startfile(url)
+            else:
+                import webbrowser
+                webbrowser.open(url)
+        except Exception as e:
+            print(f"Erro ao abrir navegador: {e}")
+            
+    threading.Timer(1.5, lambda: abrir_navegador_nativo(url_local)).start()
+    # ----------------------------------------------------------
     
     # Roda o servidor Flask suprimindo logs excessivos no arquivo de debugar
     logging.getLogger('werkzeug').setLevel(logging.ERROR)
