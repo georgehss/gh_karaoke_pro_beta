@@ -1,0 +1,9 @@
+[build]
+  # O diretório que o Expo gera ao compilar para web
+  publish = "dist"
+  # Onde o Netlify deve procurar as suas funções serverless
+  functions = "netlify/functions"
+
+[functions]
+  # Define a versão do Node para rodar a função (opcional, mas recomendado)
+  node_bundler = "esbuild"
