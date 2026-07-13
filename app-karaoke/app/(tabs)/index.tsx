@@ -48,22 +48,9 @@ import { styles } from '../../src/styles/indexStyles';
 import { LIBRARY_DIR, LRC_LIBRARY_DIR, processarLRC, formatarTempo } from '../../src/utils/indexUtils';
 
 export default function IndexScreen() {
-  // Pegamos as dimensões iniciais da TELA INTEIRA (ignorando o teclado)
-  const [isLandscape, setIsLandscape] = useState(
-    Dimensions.get('screen').width > Dimensions.get('screen').height
-  );
-
-  useEffect(() => {
-    // Atualiza a orientação apenas quando o usuário realmente girar a tela
-    const updateOrientation = () => {
-      const screen = Dimensions.get('screen');
-      setIsLandscape(screen.width > screen.height);
-    };
-
-    const subscription = Dimensions.addEventListener('change', updateOrientation);
-  
-  return () => subscription?.remove();
-  }, []);
+  // 1. UTILIZE APENAS O HOOK NATIVO (Remova o useState e useEffect antigos do Dimensions)
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
 
   // --- BLOQUEIO DE CLIQUE NO CORPO DO VÍDEO (WEB) ---
   useEffect(() => {
@@ -108,7 +95,6 @@ export default function IndexScreen() {
     };
   }, []);
 
-  const { width, height } = useWindowDimensions(); // Mantenha isso se usar para outras coisas
   const [telaAtiva, setTelaAtiva] = useState<'principal' | 'reprodutor' | 'reprodutor_lrc' | 'biblioteca' | 'biblioteca_lrc'>('principal');
   const [motorBusca, setMotorBusca] = useState<'externo' | 'interno'>('externo');
 
