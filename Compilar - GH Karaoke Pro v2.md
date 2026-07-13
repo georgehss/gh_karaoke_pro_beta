@@ -26,8 +26,42 @@ Com as atualizações do Expo SDK 54, o processo de exportação web foi simplif
 3. Isso vai gerar uma pasta chamada `dist` contendo os arquivos HTML/JS/CSS do app.
 4. Copie essa pasta `dist` inteira e cole dentro da pasta raiz do seu servidor Flask (`servidor-karaoke`).
 
-
 📦 Passo 2: Compilando com PyInstaller
+
+# ==========================================================
+# THREADS DE CONTROLE DESKTOP (VIGIA DO APP E FAXINEIRO)
+# ==========================================================
+# ... (mantenha as funções vigia_do_navegador e faxineiro_de_arquivos que já estão no guia)
+
+if __name__ == '__main__':
+    porta = int(os.environ.get("PORT", 5000))
+    
+    # Inicializa as threads em segundo plano como Daemons
+    threading.Thread(target=vigia_do_navegador, daemon=True).start()
+    threading.Thread(target=faxineiro_de_arquivos, daemon=True).start()
+    
+    # --- LÓGICA BLINDADA PARA ABRIR O NAVEGADOR PADRÃO ---
+    url_local = f"http://127.0.0.1:{porta}"
+    
+    def abrir_navegador_nativo(url):
+        try:
+            # Força o Windows a usar o aplicativo padrão real para links de internet
+            if sys.platform == 'win32':
+                os.startfile(url)
+            else:
+                import webbrowser
+                webbrowser.open(url)
+        except Exception as e:
+            print(f"Erro ao abrir navegador: {e}")
+            
+    threading.Timer(1.5, lambda: abrir_navegador_nativo(url_local)).start()
+    # ----------------------------------------------------------
+    
+    # Roda o servidor Flask suprimindo logs excessivos no terminal
+    logging.getLogger('werkzeug').setLevel(logging.ERROR)
+    app.run(host='127.0.0.1', port=porta, debug=False)
+
+
 Agora que o backend gerencia o banco sqlite e as dependências estáticas do Front, o comando do PyInstaller precisa declarar de forma explícita alguns imports ocultos (hidden-imports) essenciais.
 
 Navegue até a pasta servidor-karaoke.
@@ -37,7 +71,7 @@ Certifique-se de deletar qualquer pasta antiga de build anterior (build ou dist)
 Execute o comando de compilação completo no terminal:
 
 Bash
-pyinstaller --name "GHKaraokePro" --onedir --noconsole --add-data "dist;dist" --copy-metadata replicate --hidden-import="yt_dlp" --hidden-import="sqlite3" --hidden-import="jwt" --icon="icon.ico" servidor_desktop.py
+pyinstaller --name "GHKaraokePro" --onedir --noconsole --add-data "dist;dist" --copy-metadata replicate --hidden-import="yt_dlp" --hidden-import="sqlite3" --hidden-import="jwt" --hidden-import="soundfile" --icon="icon.ico" servidor_desktop.py
 O que cada argumento faz?
 --onedir: Consolida tudo em uma pasta limpa e organizada (essencial para persistência de downloads locais).
 

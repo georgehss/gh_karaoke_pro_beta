@@ -59,6 +59,7 @@ venv/
 env/
 __pycache__/
 ffmpeg.exe
+ffprobe.exe
 
 # Downloads temporários
 downloads/

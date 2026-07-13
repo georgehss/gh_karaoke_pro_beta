@@ -75,21 +75,12 @@ def servir_frontend(path):
     if path != "" and os.path.exists(os.path.join(app.root_path, 'dist', path)):
         return send_file(os.path.join(app.root_path, 'dist', path))
     
-    # Entrega o index.html e injeta dinamicamente o script de Heartbeat
+    # Entrega o index.html puro (o heartbeat agora já está nativo nele!)
     index_path = os.path.join(app.root_path, 'dist', 'index.html')
     if os.path.exists(index_path):
-        with open(index_path, 'r', encoding='utf-8') as f:
-            conteudo = f.read()
+        return send_file(index_path)
         
-        script_heartbeat = '''
-        <script>
-            setInterval(function() { fetch('/heartbeat').catch(function() {}); }, 2000);
-        </script>
-        '''
-        conteudo = conteudo.replace('</body>', script_heartbeat + '</body>')
-        return conteudo
-        
-    return "Pasta do frontend ('dist') não encontrada. Certifique-se de exportar o Expo.", 404
+    return "Pasta do frontend ('dist') não encontrada.", 404
 
 # ==========================================================
 # ROTAS DE AUTENTICAÇÃO E API (PROJETO ATUAL)
@@ -131,7 +122,7 @@ def login():
         token = jwt.encode({
             'id': user[0],
             'username': user[1],
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+            'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=7)
         }, SECRET_KEY, algorithm="HS256")
 
         return jsonify({
@@ -333,7 +324,7 @@ def baixar_youtube():
             extensao = 'mp4'
             
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([f"[https://www.youtube.com/watch?v=](https://www.youtube.com/watch?v=){video_id}"])
+            ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
         
         return jsonify({"sucesso": True, "url": f"{request.host_url}download_arquivo/youtube_downloads/{video_id}.{extensao}", "nome": f"YouTube_{video_id}.{extensao}"})
     except Exception as e:
