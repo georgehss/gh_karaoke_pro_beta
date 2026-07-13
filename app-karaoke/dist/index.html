@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#121212" />
+
+    <style id="expo-reset">
+      html, body, #root {
+        height: 100%;
+      }
+      body {
+        overflow: hidden;
+        margin: 0;
+        padding: 0;
+      }
+      #root {
+        display: flex;
+      }
+    </style>
+
+    <script>
+      // Registra o Service Worker do PWA
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('PWA Karaokê ativo:', reg.scope))
+            .catch(err => console.error('Erro ao registrar Service Worker:', err));
+        });
+      }
+    </script>
+
+    <title>GH Karaoke Pro</title>
+  <meta name="theme-color" content="#ffffff">
+<link rel="icon" href="/favicon.ico" /></head>
+  <body>
+    <div id="root"></div>
+  <script src="/_expo/static/js/web/entry-c2eee413a3f574f3702c35f6ccf5193d.js" defer></script>
+</body>
+</html>
