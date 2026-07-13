@@ -26,7 +26,7 @@ except Exception:
     pass
 
 # Variáveis Globais de Controle
-SECRET_KEY = os.getenv("SECRET_KEY", "gh_karaoke_secret_default_key_1919")
+SECRET_KEY = os.getenv("SECRET_KEY")
 ultimo_ping = time.time()
 DOWNLOAD_FOLDER = 'downloads'
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)

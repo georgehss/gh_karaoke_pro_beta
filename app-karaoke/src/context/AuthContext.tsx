@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
 interface UserData {
   id: string;
@@ -41,6 +42,29 @@ const deleteFromStorage = async (key: string) => {
     await SecureStore.deleteItemAsync(key);
   }
 };
+
+// === DETECTOR DE IP INTELIGENTE PARA O MODO LOCAL ===
+const obterUrlLocalInteligente = (): string => {
+  // 1. Prioriza a variável do .env, se existir
+  if (process.env.EXPO_PUBLIC_LOCAL_API_URL) {
+    return process.env.EXPO_PUBLIC_LOCAL_API_URL;
+  }
+
+  // 2. Na Web, o backend local sempre responde no localhost
+  if (Platform.OS === 'web') {
+    return 'http://localhost:5000/api/login';
+  }
+
+  // 3. No Mobile (Expo Go), extrai o IP real da máquina que está rodando o bundler
+  const hostUri = Constants.expoConfig?.hostUri;
+  if (hostUri) {
+    const ipDoComputador = hostUri.split(':')[0];
+    return `http://${ipDoComputador}:5000/api/login`;
+  }
+
+  // Fallback genérico
+  return 'http://127.0.0.1:5000/api/login';
+};
 // ==========================================================
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -68,9 +92,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signIn = async (username: string, password: string) => {
     setIsLoading(true);
     try {
-      // ⚠️ ATENÇÃO: Troque pelo IP da sua máquina se estiver rodando no celular via Expo Go!
-      // Exemplo: 'http://192.168.1.15:5000/api/login'
-      const apiUrl = 'http://192.168.1.5:5000/api/login'; 
+      const authMode = process.env.EXPO_PUBLIC_AUTH_MODE || 'serverless';
+
+      // Usa o detector inteligente se for local, ou o caminho serverless
+      const apiUrl = authMode === 'local'
+        ? obterUrlLocalInteligente()
+        : (process.env.EXPO_PUBLIC_SERVERLESS_API_URL || '/.netlify/functions/login');
+
+      console.log(`Efetuando login via modo: ${authMode} | URL: ${apiUrl}`);
 
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -84,14 +113,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error(data.erro || "Falha na autenticação");
       }
 
-      // Se deu tudo certo, salva o token real e os dados reais no Cofre
       await saveToStorage('gh_karaoke_token', data.token);
       await saveToStorage('gh_karaoke_user', JSON.stringify(data.user));
 
       setUser(data.user);
     } catch (error: any) {
       console.error("Erro no signIn:", error);
-      alert(error.message); // Exibe o aviso "Usuário ou senha inválidos" na tela
+      alert(error.message);
       throw error;
     } finally {
       setIsLoading(false);
