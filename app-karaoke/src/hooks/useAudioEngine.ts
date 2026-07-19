@@ -61,21 +61,48 @@ export function useAudioEngine(
 
   const arquivoPro = reproducaoTemp || (currentIndex >= 0 && currentIndex < playlist.length ? playlist[currentIndex] : null);
 
-  const player = useVideoPlayer(arquivoPro ? arquivoPro.uri : null, (p) => {
-    if (!p) return; p.loop = false; p.play(); p.staysActiveInBackground = true; p.showNowPlayingNotification = true;
+  const videoSource = arquivoPro?.uri ?? null; // 👈 undefined em vez de null
+  const player = useVideoPlayer(videoSource, (p) => {
+    if (!p) return;
+    p.loop = false;
+    // NÃO chame p.play() aqui - deixe o useEffect fazer isso
+    p.staysActiveInBackground = true;
   });
 
-  useEffect(() => { if (arquivoPro && player) player.play(); }, [arquivoPro]);
+  useEffect(() => {
+    if (!arquivoPro || !player) return;
+    const timer = setTimeout(() => {
+      try { player.play(); } catch (e) { /* ignora */ }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [arquivoPro]);
 
+  const currentIndexRef = useRef(currentIndex);
+  currentIndexRef.current = currentIndex;
+  const reproducaoTempRef = useRef(reproducaoTemp);
+  reproducaoTempRef.current = reproducaoTemp;
+  
   useEffect(() => {
     if (!player) return;
     const sub = player.addListener('playToEnd', () => {
-      if (reproducaoTemp) { setReproducaoTemp(null); setCurrentIndex(-1); } 
-      else if (currentIndex >= 0 && currentIndex < playlist.length - 1) { setCurrentIndex(currentIndex + 1); setUrlAudioExtraido(null); } 
-      else if (currentIndex === playlist.length - 1) { setCurrentIndex(-1); }
+      const idx = currentIndexRef.current;
+      const isTemp = reproducaoTempRef.current;
+
+      if (isTemp) {
+        // Música temporária terminou — limpa tudo
+        setReproducaoTemp(null);
+        setCurrentIndex(-1);
+      } else if (idx >= 0 && idx < playlist.length - 1) {
+        // Avança para a próxima
+        setCurrentIndex(idx + 1);
+        setUrlAudioExtraido(null);
+      } else {
+        // Fim da fila — para
+        setCurrentIndex(-1);
+      }
     });
     return () => sub.remove();
-  }, [player, currentIndex, playlist.length, reproducaoTemp]);
+  }, [player]);
 
   const adicionarNaPlaylist = (uri: string, name: string, isInterno: boolean = false) => {
     const novoItem = { id: Date.now().toString(), uri, name, isInterno };
@@ -86,10 +113,18 @@ export function useAudioEngine(
   const tocarAnterior = () => { setReproducaoTemp(null); if (currentIndex > 0) { setCurrentIndex(currentIndex - 1); setUrlAudioExtraido(null); } };
   
   const removerDaPlaylist = (index: number) => {
-    const novaLista = [...playlist]; novaLista.splice(index, 1); setPlaylist(novaLista);
-    if (novaLista.length === 0) setCurrentIndex(-1);
-    else if (index < currentIndex) setCurrentIndex(currentIndex - 1);
-    else if (index === currentIndex) setCurrentIndex(-1);
+    const novaLista = [...playlist];
+    novaLista.splice(index, 1);
+    setPlaylist(novaLista);
+    if (novaLista.length === 0) {
+      try { player?.pause(); } catch (e) { /* ignora */ }
+      setCurrentIndex(-1);
+    } else if (index < currentIndex) {
+      setCurrentIndex(currentIndex - 1);
+    } else if (index === currentIndex) {
+      try { player?.pause(); } catch (e) { /* ignora */ }
+      setCurrentIndex(-1);
+    }
   };
   
   const limparPlaylist = () => { setPlaylist([]); setCurrentIndex(-1); setReproducaoTemp(null); };
