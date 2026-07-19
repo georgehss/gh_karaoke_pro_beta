@@ -48,21 +48,24 @@ import { styles } from '../../src/styles/indexStyles';
 import { LIBRARY_DIR, LRC_LIBRARY_DIR, processarLRC, formatarTempo } from '../../src/utils/indexUtils';
 
 export default function IndexScreen() {
-  // Pegamos as dimensões iniciais da TELA INTEIRA (ignorando o teclado)
+  // Orientação: usa Dimensions direto (ignora teclado) e faz limpeza robusta
   const [isLandscape, setIsLandscape] = useState(
     Dimensions.get('screen').width > Dimensions.get('screen').height
   );
 
   useEffect(() => {
-    // Atualiza a orientação apenas quando o usuário realmente girar a tela
     const updateOrientation = () => {
       const screen = Dimensions.get('screen');
       setIsLandscape(screen.width > screen.height);
     };
 
     const subscription = Dimensions.addEventListener('change', updateOrientation);
-  
-  return () => subscription?.remove();
+
+    return () => {
+      if (subscription) {
+        subscription.remove();
+      }
+    };
   }, []);
 
   // --- BLOQUEIO DE CLIQUE NO CORPO DO VÍDEO (WEB) ---
