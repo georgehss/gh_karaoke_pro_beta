@@ -9,7 +9,8 @@ import type { PlaylistItem } from '../utils/indexUtils';
 export function useAudioEngine(
   motorBusca: 'externo' | 'interno',
   pastasVirtuaisWeb: any,
-  pastasVirtuaisLrcWeb: any
+  pastasVirtuaisLrcWeb: any,
+  onFeedback?: (feedback: { tipo: 'erro' | 'aviso' | 'sucesso'; mensagem: string }) => void 
 ) {
   // 1. ATIVAR ÁUDIO EM SEGUNDO PLANO
   useEffect(() => {
@@ -157,96 +158,290 @@ export function useAudioEngine(
 
   const fazerBuscaYoutube = async () => {
     if (!buscaYoutube.trim()) return;
-    Keyboard.dismiss(); setIsBuscandoYt(true); setResultadosYoutube([]);
+    
+    Keyboard.dismiss();
+    setIsBuscandoYt(true);
+    setResultadosYoutube([]);
+    
     try {
+      // --- PRIMEIRO: busca local (biblioteca do aparelho/PC) ---
       let resultadosLocais: any[] = [];
-      const termoBusca = buscaYoutube.toLowerCase();
 
       if (Platform.OS === 'web') {
         Object.values(pastasVirtuaisWeb).forEach((arquivos: any) => {
           arquivos.forEach((arq: any) => {
-            if (arq.nome.toLowerCase().includes(termoBusca)) resultadosLocais.push({ id: arq.uri, titulo: `[PC] ${arq.nome}`, isLocal: true, thumb: null, source: 'local' });
+            if (arq.nome.toLowerCase().includes(buscaYoutube))
+              resultadosLocais.push({
+                id: arq.uri, titulo: `[PC] ${arq.nome}`,
+                isLocal: true, thumb: null, source: 'local'
+              });
           });
         });
-        Object.values(pastasVirtuaisLrcWeb).forEach((arquivos: any) => {
-          arquivos.forEach((arq: any) => {
-            if (arq.nome.toLowerCase().includes(termoBusca)) resultadosLocais.push({ id: arq.audioUri, titulo: `[LRC PC] ${arq.nome}`, isLocal: true, thumb: null, source: 'local' });
-          });
-        });
-      }
-
-      if (Platform.OS !== 'web') {
+      } else {
         try {
           const dirInfo = await FileSystem.getInfoAsync(LIBRARY_DIR);
           if (dirInfo.exists) {
             const pastasLidas = await FileSystem.readDirectoryAsync(LIBRARY_DIR);
             for (const pasta of pastasLidas) {
-              if (!pasta.includes('.')) { 
+              if (!pasta.includes('.')) {
                 const caminhoPasta = `${LIBRARY_DIR}${pasta}`;
                 const arquivos = await FileSystem.readDirectoryAsync(caminhoPasta);
                 for (const arq of arquivos) {
-                  if (arq.toLowerCase().includes(termoBusca)) resultadosLocais.push({ id: `${caminhoPasta}/${arq}`, titulo: arq, isLocal: true, thumb: null, source: 'local' });
+                  if (arq.toLowerCase().includes(buscaYoutube))
+                    resultadosLocais.push({
+                      id: `${caminhoPasta}/${arq}`, titulo: arq,
+                      isLocal: true, thumb: null, source: 'local'
+                    });
                 }
               }
             }
           }
-        } catch (erroLocal) { console.log("Erro busca local", erroLocal); }
+        } catch (erroLocal) {
+          console.log("Erro na busca local", erroLocal);
+        }
       }
 
+      // Se achou localmente, entrega e para
       if (resultadosLocais.length > 0) {
         resultadosLocais.sort((a: any, b: any) => a.titulo.localeCompare(b.titulo));
         setResultadosYoutube(resultadosLocais);
         setIsBuscandoYt(false);
-        return; 
+        return;
       }
 
+      // --- SEGUNDO: tenta servidor externo (Flask) ---
       if (motorBusca === 'externo') {
-        const endpoint = fonteBusca === 'soundcloud' ? '/buscar_soundcloud' : '/buscar_youtube';
-        const resposta = await fetch(`${URL_SERVIDOR}${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: buscaYoutube }) });
-        const dados = await resposta.json();
-        if (dados.sucesso) {
-          const resultadosComFonte = dados.resultados.map((item: any) => ({ ...item, source: fonteBusca }));
-          setResultadosYoutube(resultadosComFonte);
+        try {
+          const endpoint = fonteBusca === 'soundcloud'
+            ? '/buscar_soundcloud'
+            : '/buscar_youtube';
+
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+          const resposta = await fetch(`${URL_SERVIDOR}${endpoint}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: buscaYoutube }),
+            signal: controller.signal
+          });
+          clearTimeout(timeout);
+
+          if (!resposta.ok) {
+            throw new Error(`Servidor retornou erro HTTP ${resposta.status}`);
+          }
+
+          const dados = await resposta.json();
+          
+          if (dados.sucesso && dados.resultados && dados.resultados.length > 0) {
+            const resultadosComFonte = dados.resultados.map((item: any) => ({
+              ...item, source: fonteBusca
+            }));
+            setResultadosYoutube(resultadosComFonte);
+            setIsBuscandoYt(false);
+            return;
+          } else {
+            alert(`Nenhum resultado encontrado para "${buscaYoutube}" no ${fonteBusca === 'soundcloud' ? 'SoundCloud' : 'YouTube'}.`);
+            setIsBuscandoYt(false);
+            return;
+          }
+        } catch (erroExterno: any) {
+          // Fallback automático: tenta modo interno (YouTube API direta)
+          console.warn("Servidor externo falhou, tentando modo interno...", erroExterno.message);
+
+          if (fonteBusca === 'soundcloud') {
+            onFeedback?.({
+              tipo: 'erro',
+              mensagem: `Servidor Flask offline (${erroExterno.message === 'Aborted' ? 'timeout' : erroExterno.message}). O SoundCloud só funciona com o servidor externo. Verifique se o backend está rodando na porta 5000.`
+            });
+            setIsBuscandoYt(false);
+            return;
+          }
+
+          // Tenta fallback para YouTube Data API
+          try {
+            const YOUTUBE_API_KEY = 'AIzaSyBsTCanvwC87oHqR4wODQ1dFztlh0kLo0s';
+            const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=20&q=${encodeURIComponent(buscaYoutube)}&type=video&key=${YOUTUBE_API_KEY}`;
+
+            const resposta = await fetch(url);
+            
+            if (!resposta.ok) {
+              throw new Error(`YouTube API retornou erro ${resposta.status}`);
+            }
+
+            const dados = await resposta.json();
+            
+            if (dados.items && dados.items.length > 0) {
+              const resultadosFormatados = dados.items.map((item: any) => ({
+                id: item.id.videoId,
+                titulo: item.snippet.title,
+                thumb: item.snippet.thumbnails.high.url,
+                isInterno: true,
+                source: 'youtube'
+              }));
+              setResultadosYoutube(resultadosFormatados);
+              onFeedback?.({ tipo: 'sucesso', mensagem: 'Servidor externo offline. Buscando via YouTube API (modo interno automático).' });
+            } else {
+              onFeedback?.({ tipo: 'aviso', mensagem: `Nenhum resultado encontrado para "${buscaYoutube}".` });
+            }
+          } catch (erroInterno: any) {
+            alert(
+              `Servidor Flask offline e fallback para API do YouTube falhou. ` +
+              `Verifique:\n` +
+              `1. Se o servidor Python está rodando (porta 5000)\n` +
+              `2. Sua conexão com a internet\n` +
+              `3. Se a chave da API do YouTube é válida\n` +
+              `Erro: ${erroInterno.message}`
+            );
+          }
         }
       } else {
-        const YOUTUBE_API_KEY = 'AIzaSyBsTCanvwC87oHqR4wODQ1dFztlh0kLo0s'; 
-        const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=20&q=${encodeURIComponent(buscaYoutube)}&type=video&key=${YOUTUBE_API_KEY}`;
-        const resposta = await fetch(url);
-        const dados = await resposta.json();
-        if (dados.items) {
-          const resultadosFormatados = dados.items.map((item: any) => ({ id: item.id.videoId, titulo: item.snippet.title, thumb: item.snippet.thumbnails.high.url, isInterno: true, source: 'youtube' }));
-          setResultadosYoutube(resultadosFormatados);
+        // --- MODO INTERNO (YouTube API direta) ---
+        try {
+          const YOUTUBE_API_KEY = 'AIzaSyBsTCanvwC87oHqR4wODQ1dFztlh0kLo0s';
+          const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=20&q=${encodeURIComponent(buscaYoutube)}&type=video&key=${YOUTUBE_API_KEY}`;
+
+          const resposta = await fetch(url);
+
+          if (!resposta.ok) {
+            throw new Error(`YouTube API retornou erro HTTP ${resposta.status}`);
+          }
+
+          const dados = await resposta.json();
+
+          if (dados.items && dados.items.length > 0) {
+            const resultadosFormatados = dados.items.map((item: any) => ({
+              id: item.id.videoId,
+              titulo: item.snippet.title,
+              thumb: item.snippet.thumbnails.high.url,
+              isInterno: true,
+              source: 'youtube'
+            }));
+            setResultadosYoutube(resultadosFormatados);
+          } else {
+            onFeedback?.({ tipo: 'aviso', mensagem: `Nenhum resultado encontrado para "${buscaYoutube}".` });
+          }
+        } catch (erroInterno: any) {
+          onFeedback?.({ tipo: 'erro', mensagem: 'Servidor Flask offline. Verifique se o backend está rodando na porta 5000.' });
         }
       }
-    } catch (erro) { alert("Erro na busca. Verifique no MENU qual dos modos está ativado, servidor externo ou servidor interno. Tente mudar o servidor atual."); }
+    } catch (erro: any) {
+      alert(`Erro inesperado: ${erro.message}. Tente novamente.`);
+    }
+    
     setIsBuscandoYt(false);
   };
 
-  const iniciarTocarYoutube = async (id: string, formato: string, titulo: string, resolucao: string, extensao: string, acao: string, source: string) => {
-    setIsBaixandoYt(true); setIdBaixando(id);
+  const iniciarTocarYoutube = async (
+    id: string, formato: string, titulo: string,
+    resolucao: string, extensao: string, acao: string, source: string
+  ) => {
+    setIsBaixandoYt(true);
+    setIdBaixando(id);
     let resultado = null;
+
     try {
-      const endpoint = source === 'soundcloud' ? '/baixar_soundcloud' : '/baixar_youtube';
-      const resposta = await fetch(`${URL_SERVIDOR}${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, formato, resolucao, extensao }) });
-      const dados = await resposta.json();
-      
-      if (dados.sucesso) {
-        // Limpa o nome do arquivo para não corromper o salvamento no Windows/Android
-        const nomeLimpo = titulo.replace(/[\\/\\\\?%*:|"<>]/g, '').trim() || 'Media';
-        
+      if (source === 'local') {
+        // MIDIA LOCAL
         if (acao === 'tocar') {
-          setReproducaoTemp({ uri: dados.url, name: `[Tocando Agora] ${nomeLimpo}.${extensao}` });
-          setUrlAudioExtraido(null); setIsPlaylistVisible(false);
+          setReproducaoTemp({ uri: id, name: titulo });
         } else if (acao === 'fila') {
-          adicionarNaPlaylist(dados.url, `${nomeLimpo}.${extensao}`);
+          adicionarNaPlaylist(id, titulo);
           alert("Adicionado à Lista de Reprodução!");
         }
-        
-        // MÁGICA: Retorna a URL para o index.tsx usar na tela de Destino do Download
-        resultado = { url: dados.url, nomeFinal: `${nomeLimpo}.${extensao}` };
-      } else { alert("Erro no servidor."); }
-    } catch (erro) { alert("Falha na conexão com o servidor."); }
-    setIsBaixandoYt(false); setIdBaixando(null);
+        setIsBaixandoYt(false);
+        setIdBaixando(null);
+        return resultado;
+      }
+
+      if (source === 'soundcloud') {
+        // SOUNDCLOUD
+        try {
+          const resposta = await fetch(`${URL_SERVIDOR}/baixar_soundcloud`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, resolucao, extensao })
+          });
+          if (!resposta.ok) throw new Error(`Servidor retornou erro HTTP ${resposta.status}`);
+          const dados = await resposta.json();
+          if (dados.sucesso) {
+            const nomeLimpo = titulo.replace(/[^a-zA-Z0-9]/g, '_');
+            if (acao === 'tocar') {
+              setReproducaoTemp({ uri: dados.url, name: `[Tocando Agora] ${nomeLimpo}.${extensao}` });
+            } else {
+              adicionarNaPlaylist(dados.url, `${nomeLimpo}.${extensao}`);
+              alert("Adicionado à Lista de Reprodução!");
+            }
+            resultado = { url: dados.url, nomeFinal: `${nomeLimpo}.${extensao}` };
+          } else {
+            throw new Error(dados.erro || "Erro ao baixar do SoundCloud");
+          }
+        } catch (erro: any) {
+          alert(`Falha ao baixar do SoundCloud.\nServidor Flask precisa estar rodando.\nErro: ${erro.message}`);
+        }
+        setIsBaixandoYt(false);
+        setIdBaixando(null);
+        return resultado;
+      }
+
+      // YOUTUBE: tenta servidor externo primeiro
+      try {
+        const endpoint = '/baixar_youtube';
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+        const resposta = await fetch(`${URL_SERVIDOR}${endpoint}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, formato, resolucao, extensao }),
+          signal: controller.signal
+        });
+        clearTimeout(timeout);
+
+        if (!resposta.ok) throw new Error(`Servidor retornou erro HTTP ${resposta.status}`);
+
+        const dados = await resposta.json();
+        if (dados.sucesso) {
+          const nomeLimpo = titulo.replace(/[^a-zA-Z0-9]/g, '_');
+          if (acao === 'tocar') {
+            setUrlAudioExtraido(null);
+            setReproducaoTemp({ uri: dados.url, name: `[Tocando Agora] ${nomeLimpo}.${extensao}` });
+            setIsPlaylistVisible(false);
+          } else {
+            adicionarNaPlaylist(dados.url, `${nomeLimpo}.${extensao}`);
+            alert("Adicionado à Lista de Reprodução!");
+          }
+          resultado = { url: dados.url, nomeFinal: `${nomeLimpo}.${extensao}` };
+        } else {
+          throw new Error(dados.erro || "Erro no servidor");
+        }
+      } catch (erroExterno: any) {
+        // SE O ITEM É isInterno (YouTube API direta), tenta tocar direto
+        if ((source === 'youtube' || id.startsWith('http')) && formato === 'video') {
+          console.warn("Servidor externo falhou, tentando YouTube direto...");
+          setReproducaoTemp({
+            uri: `https://www.youtube.com/watch?v=${id}`,
+            name: `▶️ ${titulo}`
+          });
+          alert(
+            "Servidor Flask offline. Tocando diretamente do YouTube (modo contingência). " +
+            "Qualidade limitada à conexão de internet."
+          );
+          resultado = { url: `https://www.youtube.com/watch?v=${id}`, nomeFinal: titulo };
+        } else {
+          alert(
+            `Falha ao processar "${titulo}".\n` +
+            `Erro: ${erroExterno.message}\n\n` +
+            `Verifique se o servidor Flask está rodando na porta 5000.`
+          );
+        }
+      }
+    } catch (erro: any) {
+      alert(`Erro inesperado: ${erro.message}. Tente novamente.`);
+    }
+
+    setIsBaixandoYt(false);
+    setIdBaixando(null);
     return resultado;
   };
 

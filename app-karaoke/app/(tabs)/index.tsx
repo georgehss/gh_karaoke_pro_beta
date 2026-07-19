@@ -108,6 +108,10 @@ export default function IndexScreen() {
     };
   }, []);
 
+  // --- ESTADO DE FEEDBACK NA UI ---
+  const [feedback, setFeedback] = useState<{ tipo: 'erro' | 'aviso' | 'sucesso'; mensagem: string } | null>(null);
+
+  // --- ESTADOS PRINCIPAIS DE NAVEGAÇÃO ---
   const { width, height } = useWindowDimensions(); // Mantenha isso se usar para outras coisas
   const [telaAtiva, setTelaAtiva] = useState<'principal' | 'reprodutor' | 'reprodutor_lrc' | 'biblioteca' | 'biblioteca_lrc'>('principal');
   const [motorBusca, setMotorBusca] = useState<'externo' | 'interno'>('externo');
@@ -130,7 +134,7 @@ export default function IndexScreen() {
   } = useLibraryManager(telaAtiva);
 
     // ... HOOK DE REPRODUÇÃO DE ÁUDIO E VÍDEO ...
-  const audioEngine = useAudioEngine(motorBusca, pastasVirtuaisWeb, pastasVirtuaisLrcWeb);
+  const audioEngine = useAudioEngine(motorBusca, pastasVirtuaisWeb, pastasVirtuaisLrcWeb, setFeedback);
   const {
     arquivoAudio, setArquivoAudio, audioUri, setAudioUri, audioPlayer, isPlaying, setIsPlaying, tempoAtual, setTempoAtual, duracaoTotal, setDuracaoTotal, tocarOuPausar, retrocederAudio, avancarAudio,
     playlist, setPlaylist, currentIndex, setCurrentIndex, reproducaoTemp, setReproducaoTemp, isPlaylistVisible, setIsPlaylistVisible, urlAudioExtraido, setUrlAudioExtraido, isExtracting, extrairAudioDoVideo, arquivoPro, player, tocarProxima, tocarAnterior, removerDaPlaylist, limparPlaylist, confirmarLimparPlaylist, adicionarNaPlaylist, moverItemFila, repararLinksDaFila,
@@ -750,7 +754,48 @@ export default function IndexScreen() {
         <TouchableOpacity style={styles.menuButton} onPress={() => setMenuAberto(true)}>
           <Ionicons name="menu" size={34} color="#FFFFFF" />
         </TouchableOpacity>
-      </View> 
+      </View>
+
+      {/* ─── BANNER DE FEEDBACK ─── */}
+      {feedback && (
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          marginHorizontal: 15,
+          marginVertical: 5,
+          paddingVertical: 10,
+          paddingHorizontal: 15,
+          borderRadius: 10,
+          backgroundColor: 
+            feedback.tipo === 'erro' ? '#3D1A1A' :
+            feedback.tipo === 'aviso' ? '#3D2E1A' : '#1A3D1A',
+          borderLeftWidth: 4,
+          borderLeftColor: 
+            feedback.tipo === 'erro' ? '#E50914' :
+            feedback.tipo === 'aviso' ? '#F59E0B' : '#10B981',
+        }}>
+          <Text style={{ flex: 1, color: '#FFF', fontSize: 13, lineHeight: 18 }}>
+            {feedback.mensagem}
+          </Text>
+          <TouchableOpacity onPress={() => setFeedback(null)} style={{ marginLeft: 10, padding: 5 }}>
+            <Text style={{ color: '#999', fontSize: 16, fontWeight: 'bold' }}>✕</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* ─── INDICADOR DE SERVIDOR ATIVO ─── */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, paddingHorizontal: 20 }}>
+        <View style={{
+          width: 8,
+          height: 8,
+          borderRadius: 4,
+          backgroundColor: motorBusca === 'externo' ? '#b40808' : '#3B82F6',
+          marginRight: 6
+        }} />
+        <Text style={{ color: '#6B7280', fontSize: 11, fontWeight: '600' }}>
+          {motorBusca === 'externo' ? 'Servidor Externo' : 'YouTube API'}
+        </Text>
+      </View>
 
       {/* MENU LATERAL E MODAIS DE BIBLIOTECA CENTRALIZADOS */}
       <MenuLateral
