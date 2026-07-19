@@ -8,21 +8,34 @@ export const LRC_LIBRARY_DIR = `${FileSystem.documentDirectory}LrcLibrary/`;
 export const PLAYLISTS_DIR = `${FileSystem.documentDirectory}Playlists/`;
 
 const definirUrlAmbiente = (): string => {
+  // 1. Override via variável de ambiente (maior prioridade)
+  //    Para usar: EXPO_PUBLIC_SERVIDOR_URL=http://meu-servidor:5000 npx expo start
+  const envUrl = process.env.EXPO_PUBLIC_SERVIDOR_URL;
+  if (envUrl) return envUrl;
+
   if (Platform.OS === 'web') {
-    return 'http://localhost:5000';
+  // PyInstaller: Flask serve tudo na mesma porta → window.location.origin funciona
+  // Expo web dev: frontend em porta diferente, Flask está no mesmo hostname na 5000
+  const port = window.location.port;
+  
+  // Se não tem porta (80/443) ou está na porta do Flask (5000), mesma origem
+  if (!port || port === '5000') {
+    return window.location.origin;
+  }
+  
+  // Expo web dev: Flask está no mesmo hostname, porta 5000
+  return `http://${window.location.hostname}:5000`;
   }
 
-  // Captura o endereço de conexão que o Metro Bundler está usando para se comunicar com o app
-  const hostUri = Constants.expoConfig?.hostUri; 
-  
+  // Mobile: extrai o IP do Metro Bundler para conectar na rede local
+  const hostUri = Constants.expoConfig?.hostUri;
   if (hostUri) {
-    // O hostUri vem no formato "192.168.X.X:8081", então separamos para pegar apenas o IP antes dos dois pontos
     const ipDoMetro = hostUri.split(':')[0];
     return `http://${ipDoMetro}:5000`;
   }
 
-  // Fallback de segurança caso o hostUri falhe em algum cenário offline extremo
-  return 'http://192.168.0.XX:5000'; 
+  // Fallback: localhost para testes com emulador
+  return 'http://localhost:5000';
 };
 
 export const URL_SERVIDOR = definirUrlAmbiente();

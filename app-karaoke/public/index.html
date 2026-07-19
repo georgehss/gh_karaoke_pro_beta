@@ -33,7 +33,7 @@
       }
       // --- HEARTBEAT DESKTOP: AVISA O SERVIDOR PYTHON PARA NÃO DESLIGAR ---
       setInterval(function() { 
-        fetch('http://127.0.0.1:5000/heartbeat').catch(function() {}); 
+        fetch(window.location.origin + '/heartbeat').catch(function() {}); 
       }, 2000);
       // --------------------------------------------------------------------
     </script>
