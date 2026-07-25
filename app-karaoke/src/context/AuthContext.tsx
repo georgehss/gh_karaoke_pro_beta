@@ -94,7 +94,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const authMode = process.env.EXPO_PUBLIC_AUTH_MODE || 'serverless';
 
-      // Usa o detector inteligente se for local, ou o caminho serverless
+      // ─── MODO DEMO: apenas no mobile (APK compilado) ─────
+      if (Platform.OS !== 'web') {
+        if (!username || !password) {
+          throw new Error('Preencha usuário e senha!');
+        }
+
+        const usuarioDemo = {
+          id: '0',
+          username: username,
+          isPro: true
+        };
+
+        await saveToStorage('gh_karaoke_token', 'demo_token_' + Date.now());
+        await saveToStorage('gh_karaoke_user', JSON.stringify(usuarioDemo));
+
+        setUser(usuarioDemo);
+        console.log('✅ Modo Demo (mobile): login offline realizado');
+        return;
+      }
+
+      // ─── MODO NORMAL: apenas na web (mantido original) ──
       const apiUrl = authMode === 'local'
         ? obterUrlLocalInteligente()
         : (process.env.EXPO_PUBLIC_SERVERLESS_API_URL || '/.netlify/functions/login');

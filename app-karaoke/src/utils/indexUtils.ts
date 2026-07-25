@@ -8,6 +8,10 @@ export const LRC_LIBRARY_DIR = `${FileSystem.documentDirectory}LrcLibrary/`;
 export const PLAYLISTS_DIR = `${FileSystem.documentDirectory}Playlists/`;
 
 const definirUrlAmbiente = (): string => {
+  // Se estiver em modo demo, devolve uma URL dummy
+  if (process.env.EXPO_PUBLIC_MODO_DEMO === 'true') {
+    return 'http://localhost:5000'; // dummy, não será usada
+  }
   // 1. Override via variável de ambiente (maior prioridade)
   //    Para usar: EXPO_PUBLIC_SERVIDOR_URL=http://meu-servidor:5000 npx expo start
   const envUrl = process.env.EXPO_PUBLIC_SERVIDOR_URL;
